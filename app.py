@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 import os
 import secrets
 import time
-import pandas as pd
 from io import BytesIO
 import logging
 from database import get_db_path, init_db, check_database_exists, get_db_connection
@@ -20,12 +19,15 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 _secret_key = os.environ.get('SECRET_KEY')
+_ON_VERCEL_EARLY = 'VERCEL' in os.environ
 if not _secret_key:
-    if os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER'):
-        raise RuntimeError("SECRET_KEY environment variable must be set in production")
-    if 'VERCEL' in os.environ:
+    if _ON_VERCEL_EARLY:
+        # Never crash the serverless function at import time: Vercel dashboard
+        # SECRET_KEY may be unset. Warn; sessions reset on cold starts until set.
         logger.warning("SECRET_KEY not set on Vercel — using an ephemeral key. "
                        "Set SECRET_KEY in Vercel env vars or sessions will reset on cold starts.")
+    elif os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER'):
+        raise RuntimeError("SECRET_KEY environment variable must be set in production")
     else:
         logger.warning("SECRET_KEY not set — using an ephemeral development key. Set SECRET_KEY env var.")
     _secret_key = secrets.token_hex(32)
@@ -146,7 +148,10 @@ except Exception as e:
     @app.route('/')
     def error_page():
         return render_template('errors/database_error.html'), 500
-    raise  # Re-raise the exception for proper error handling
+    if 'VERCEL' not in os.environ:
+        raise  # Re-raise locally/Render for proper error handling; on Vercel
+    # never kill the function at import time (would surface as
+    # 500 FUNCTION_INVOCATION_FAILED with no useful page).
 
 # Context processors
 @app.context_processor
@@ -1098,7 +1103,12 @@ def export_appointments():
             WHERE a.hospital_id = ?
             ORDER BY a.date DESC, a.time_slot DESC
         ''', (session['hospital_id'],)).fetchall()
-        
+
+        try:
+            import pandas as pd
+        except ImportError:
+            flash('Excel export is unavailable (export dependencies not installed)', 'danger')
+            return redirect(url_for('view_appointments'))
         df = pd.DataFrame(appointments, columns=['Patient Name', 'Doctor Name', 'Date', 'Time Slot', 'Status', 'Notes'])
         
         output = BytesIO()
