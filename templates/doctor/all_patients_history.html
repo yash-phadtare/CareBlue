@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}My patients{% endblock %}
+{% block page_title %}My patients{% endblock %}
+{% block crumbs %}rounds · patients{% endblock %}
+{% block content %}
+<div class="md-page-head">
+    <p class="md-eyebrow">Continuity of care</p>
+    <h2 class="md-h2">Patients <span class="md-count-tag">· {{ patients|length }}{% if search_query %} of {{ patients_total }}{% endif %}</span></h2>
+    <p class="md-sub">Everyone you've seen, with last visit.</p>
+</div>
+<div class="md-card"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('all_patients_history') }}" role="search">
+        <div class="md-search-wrap"><div class="md-field"><label for="q">Search patients</label><input type="search" id="q" name="search" placeholder="Name..." value="{{ search_query }}"></div><button class="md-btn md-btn--filled" type="submit">Search</button>{% if search_query %}<a href="{{ url_for('all_patients_history') }}" class="md-btn md-btn--light">Clear</a>{% endif %}</div>
+    </form>
+    {% if patients %}
+    <div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="8"><caption class="md-sr-only">Patients</caption>
+        <thead><tr><th scope="col">#</th><th scope="col">Patient</th><th scope="col">Age</th><th scope="col">Gender</th><th scope="col">Last visit</th><th scope="col" class="text-right">Timeline</th></tr></thead>
+        <tbody>{% for patient in patients %}<tr>
+            <td class="md-row-no">{{ '%02d' % loop.index }}</td>
+            <td><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ patient.name[0]|upper }}</span><strong>{{ patient.name }}</strong></span></td>
+            <td class="md-mono-nums">{{ patient.age }}</td><td>{{ patient.gender }}</td><td class="md-mono-nums" style="color:var(--md-on-surface-variant)">{{ patient.last_visit or '—' }}</td>
+            <td class="text-right"><a href="{{ url_for('patient_history', patient_id=patient.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Open timeline of {{ patient.name }}"><i data-lucide="history"></i>Open</a></td>
+        </tr>{% endfor %}</tbody>
+    </table></div></div>
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="users"></i></div><h5>No patients yet</h5><p>Patients appear here after their first visit with you.</p></div>{% endif %}
+</div></div>
+{% endblock %}

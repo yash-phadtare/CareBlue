@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Weekly hours · Dr. {{ doctor.name }}{% endblock %}
+{% block page_title %}Weekly hours{% endblock %}
+{% block crumbs %}registry · doctors · hours{% endblock %}
+{% block content %}
+<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
+    <div><p class="md-eyebrow">Availability rhythm</p><h2 class="md-h2">Dr. {{ doctor.name }}</h2><p class="md-sub">Tick <strong>Day off</strong> for closed days · only open days can be booked.</p></div>
+    <div class="md-cluster">
+        <button type="button" class="md-btn md-btn--outlined" id="copyMonday"><i data-lucide="copy"></i>Copy Monday to all</button>
+        <a href="{{ url_for('view_doctors') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>Doctors</a>
+    </div>
+</div></div>
+<div class="md-grid-3">
+    {% for day in ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'] %}
+    {% set day_slot = slots|selectattr('day_of_week','equalto',day)|first %}
+    <div class="md-card" data-day-card="{{ day }}">
+        <div class="md-card-head"><h5>{{ day }}</h5>{% if day_slot %}<span class="md-badge md-badge--sched">Open</span>{% else %}<span class="md-badge md-badge--neutral">Off</span>{% endif %}</div>
+        <div class="md-card-body">
+            <form method="POST" action="{{ url_for('set_doctor_slots', doctor_id=doctor.id) }}" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="day" value="{{ day }}">
+                <label class="md-check" style="margin-bottom:0.9rem"><input type="checkbox" name="day_off" value="1" {% if not day_slot %}checked{% endif %} data-off-toggle> Day off — not bookable</label>
+                <div class="md-grid-2" style="gap:0.9rem" data-time-fields>
+                    <div class="md-field"><label>Opens</label><input type="time" name="start_time" value="{{ day_slot.start_time if day_slot else '09:00' }}" aria-label="{{ day }} opening time"></div>
+                    <div class="md-field"><label>Closes</label><input type="time" name="end_time" value="{{ day_slot.end_time if day_slot else '17:00' }}" aria-label="{{ day }} closing time"></div>
+                    <div class="md-field"><label>Break from <span class="md-caption">(opt.)</span></label><input type="time" name="break_start" value="{{ day_slot.break_start if day_slot and day_slot.break_start else '' }}" aria-label="{{ day }} break start"></div>
+                    <div class="md-field"><label>Break to <span class="md-caption">(opt.)</span></label><input type="time" name="break_end" value="{{ day_slot.break_end if day_slot and day_slot.break_end else '' }}" aria-label="{{ day }} break end"></div>
+                </div>
+                <button class="md-btn md-btn--filled md-btn--sm md-full" style="margin-top:1rem" type="submit"><i data-lucide="check"></i>Save {{ day }}</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const syncOff = (card) => {
+    const off = card.querySelector('[data-off-toggle]').checked;
+    card.querySelectorAll('[data-time-fields] input').forEach((i) => { i.disabled = off; i.required = !off; });
+    card.style.opacity = off ? '0.72' : '1';
+  };
+  document.querySelectorAll('[data-day-card]').forEach((card) => {
+    syncOff(card);
+    card.querySelector('[data-off-toggle]').addEventListener('change', () => syncOff(card));
+  });
+  document.getElementById('copyMonday').addEventListener('click', () => {
+    const mon = document.querySelector('[data-day-card="Monday"]');
+    if (mon.querySelector('[data-off-toggle]').checked) {
+      alert('Set Monday hours first (Monday is currently a day off).');
+      return;
+    }
+    const vals = [...mon.querySelectorAll('[data-time-fields] input')].map((i) => i.value);
+    document.querySelectorAll('[data-day-card]').forEach((card) => {
+      if (card.dataset.dayCard === 'Monday') return;
+      card.querySelectorAll('[data-time-fields] input').forEach((inp, idx) => { inp.value = vals[idx] || ''; });
+      card.querySelector('[data-off-toggle]').checked = false;
+      syncOff(card);
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: hospital-management-system
+    env: python
+    buildCommand: |
+      chmod +x build.sh
+      ./build.sh
+    startCommand: gunicorn app:app --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      - key: FLASK_APP
+        value: app.py
+      - key: RENDER
+        value: true
+    healthCheckPath: /
+    autoDeploy: true
+    plan: free

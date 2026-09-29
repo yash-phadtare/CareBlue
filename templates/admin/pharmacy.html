@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Pharmacy{% endblock %}
+{% block page_title %}Pharmacy{% endblock %}
+{% block crumbs %}operations · pharmacy{% endblock %}
+{% block content %}
+<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
+    <div><p class="md-eyebrow">Operations · stock</p><h2 class="md-h2">Inventory <span class="md-count-tag">· {{ total }} item(s){% if low_only %} · {{ medicines|length }} low{% endif %}</span></h2><p class="md-sub">{% if low_count %}<strong>{{ low_count }}</strong> item(s) at or below reorder level.{% else %}Stock levels are healthy.{% endif %}</p></div>
+    <button class="md-btn md-btn--filled" data-md-open="addMedDlg"><i data-lucide="plus"></i>Add medicine</button>
+</div></div>
+<div class="md-card"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('pharmacy') }}" role="search">
+        <div class="md-search-wrap"><div class="md-field"><label for="q">Search inventory</label><input type="search" id="q" name="search" placeholder="Medicine name..." value="{{ search_query }}">{% if low_only %}<input type="hidden" name="low" value="1">{% endif %}</div><button class="md-btn md-btn--filled" type="submit">Search</button>{% if search_query or low_only %}<a href="{{ url_for('pharmacy') }}" class="md-btn md-btn--light">Clear</a>{% endif %}</div>
+    </form>
+    <div class="md-chip-row mb-1" role="group" aria-label="Stock filter">
+        <a class="md-chip {{ 'on' if not low_only }}" href="{{ url_for('pharmacy') }}{% if search_query %}?search={{ search_query }}{% endif %}">All stock</a>
+        <a class="md-chip {{ 'on' if low_only }}" href="{{ url_for('pharmacy') }}?low=1{% if search_query %}&amp;search={{ search_query }}{% endif %}">Low stock{% if low_count %} ({{ low_count }}){% endif %}</a>
+    </div>
+    {% if medicines %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="10"><caption class="md-sr-only">Pharmacy inventory — stock, price and availability</caption>
+        <thead><tr><th scope="col">#</th><th scope="col">Medicine</th><th scope="col">Strength</th><th scope="col">Stock</th><th scope="col">Price</th><th scope="col">State</th><th scope="col" class="text-right">Actions</th></tr></thead>
+        <tbody>{% for m in medicines %}<tr>
+            <td class="md-row-no">{{ '%02d' % loop.index }}</td>
+            <td><strong>{{ m.name }}</strong>{% if m.unit %}<br><small class="md-caption">{{ m.unit }}</small>{% endif %}</td>
+            <td>{{ m.strength or '—' }}</td>
+            <td class="md-mono-nums"><strong>{{ m.stock_qty }}</strong> <span class="md-caption">/ reorder {{ m.reorder_level }}</span></td>
+            <td class="md-mono-nums">₹{{ '%.2f'|format(m.unit_price or 0) }}</td>
+            <td>{% if (m.stock_qty or 0) == 0 %}<span class="md-badge md-badge--danger"><i data-lucide="circle-x" aria-hidden="true"></i>Out of stock</span>{% elif (m.stock_qty or 0) <= (m.reorder_level or 0) %}<span class="md-badge md-badge--warn"><i data-lucide="triangle-alert" aria-hidden="true"></i>Low stock</span>{% else %}<span class="md-badge md-badge--done"><i data-lucide="check" aria-hidden="true"></i>In stock</span>{% endif %}</td>
+            <td class="text-right"><span class="md-row-actions">
+                <button class="md-btn md-btn--outlined md-btn--sm" data-md-open="adj{{ m.id }}" aria-label="Adjust stock of {{ m.name }}"><i data-lucide="plus-minus"></i>Stock</button>
+                <span class="md-menu-wrap">
+                    <button class="md-icon-btn md-icon-btn--sm" type="button" data-md-menu="phMenu{{ m.id }}" aria-label="More actions for {{ m.name }}" aria-expanded="false"><i data-lucide="ellipsis-vertical"></i></button>
+                    <div class="md-menu" id="phMenu{{ m.id }}" role="menu" aria-label="Medicine actions">
+                        <button type="button" class="md-menu-item" data-md-open="edit{{ m.id }}" role="menuitem"><i data-lucide="pencil"></i>Edit details</button>
+                        <button type="button" class="md-menu-item" data-md-open="delMed{{ m.id }}" role="menuitem"><i data-lucide="trash-2"></i>Remove</button>
+                    </div>
+                </span>
+            </span></td>
+        </tr>{% endfor %}</tbody>
+    </table></div></div>
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="pill"></i></div><h5>Empty shelves</h5><p>{% if search_query or low_only %}Try clearing the filters.{% else %}Add your first medicine to open the inventory.{% endif %}</p><button class="md-btn md-btn--filled md-btn--sm" data-md-open="addMedDlg">Add medicine</button></div>{% endif %}
+</div></div>
+<a href="#" class="md-fab" data-md-open="addMedDlg" onclick="return false" aria-label="Add medicine" style="text-decoration:none"><i data-lucide="plus"></i>Medicine</a>
+
+<div class="md-dialog-backdrop" data-md-dialog="addMedDlg" role="dialog" aria-modal="true" aria-label="Add medicine"><div class="md-dialog">
+    <div class="md-dialog-head"><h5 class="md-dialog-title">Add medicine</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <form method="POST" action="{{ url_for('add_medicine') }}">
+        <div class="md-dialog-body md-stack">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="md-field"><label for="med_name">Name</label><input id="med_name" name="name" required maxlength="120" placeholder="e.g. Paracetamol"></div>
+            <div class="md-grid-2" style="gap:0.9rem;grid-template-columns:1fr 1fr">
+                <div class="md-field"><label for="med_str">Strength</label><input id="med_str" name="strength" maxlength="60" placeholder="e.g. 500mg"></div>
+                <div class="md-field"><label for="med_unit">Unit</label><input id="med_unit" name="unit" maxlength="30" placeholder="e.g. strip of 15"></div>
+            </div>
+            <div class="md-grid-3" style="gap:0.9rem;grid-template-columns:1fr 1fr 1fr;margin-bottom:0">
+                <div class="md-field"><label for="med_stock">Opening stock</label><input id="med_stock" name="stock_qty" type="number" min="0" value="0"></div>
+                <div class="md-field"><label for="med_reorder">Reorder at</label><input id="med_reorder" name="reorder_level" type="number" min="0" value="10"></div>
+                <div class="md-field"><label for="med_price">Price (₹)</label><input id="med_price" name="unit_price" type="number" min="0" step="0.01" value="0"></div>
+            </div>
+        </div>
+        <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Cancel</button><button class="md-btn md-btn--filled" type="submit">Add</button></div>
+    </form>
+</div></div>
+
+{% for m in medicines %}
+<div class="md-dialog-backdrop" data-md-dialog="edit{{ m.id }}" role="dialog" aria-modal="true" aria-label="Edit medicine"><div class="md-dialog">
+    <div class="md-dialog-head"><h5 class="md-dialog-title">Edit {{ m.name }}</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <form method="POST" action="{{ url_for('update_medicine', medicine_id=m.id) }}">
+        <div class="md-dialog-body md-stack">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="md-field"><label for="ename{{ m.id }}">Name</label><input id="ename{{ m.id }}" name="name" required maxlength="120" value="{{ m.name }}"></div>
+            <div class="md-grid-2" style="gap:0.9rem;grid-template-columns:1fr 1fr">
+                <div class="md-field"><label for="estr{{ m.id }}">Strength</label><input id="estr{{ m.id }}" name="strength" maxlength="60" value="{{ m.strength or '' }}"></div>
+                <div class="md-field"><label for="eunit{{ m.id }}">Unit</label><input id="eunit{{ m.id }}" name="unit" maxlength="30" value="{{ m.unit or '' }}"></div>
+            </div>
+            <div class="md-grid-2" style="gap:0.9rem;grid-template-columns:1fr 1fr">
+                <div class="md-field"><label for="ereo{{ m.id }}">Reorder at</label><input id="ereo{{ m.id }}" name="reorder_level" type="number" min="0" value="{{ m.reorder_level }}"></div>
+                <div class="md-field"><label for="eprice{{ m.id }}">Price (₹)</label><input id="eprice{{ m.id }}" name="unit_price" type="number" min="0" step="0.01" value="{{ m.unit_price }}"></div>
+            </div>
+            <p class="md-caption">Current stock {{ m.stock_qty }} — use Adjust to move stock.</p>
+        </div>
+        <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Cancel</button><button class="md-btn md-btn--filled" type="submit">Save</button></div>
+    </form>
+</div></div>
+<div class="md-dialog-backdrop" data-md-dialog="adj{{ m.id }}" role="dialog" aria-modal="true" aria-label="Adjust stock"><div class="md-dialog">
+    <div class="md-dialog-head"><h5 class="md-dialog-title">Adjust stock · {{ m.name }}</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <form method="POST" action="{{ url_for('adjust_stock', medicine_id=m.id) }}">
+        <div class="md-dialog-body md-stack">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <p style="margin:0">Currently <strong class="md-mono-nums">{{ m.stock_qty }}</strong> in stock.</p>
+            <div class="md-field"><label for="delta{{ m.id }}">Add (+) or remove (−) units</label><input id="delta{{ m.id }}" name="delta" type="number" required placeholder="e.g. 50 or -10"></div>
+        </div>
+        <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Cancel</button><button class="md-btn md-btn--filled" type="submit">Apply</button></div>
+    </form>
+</div></div>
+<div class="md-dialog-backdrop" data-md-dialog="delMed{{ m.id }}" role="dialog" aria-modal="true" aria-label="Remove medicine"><div class="md-dialog">
+    <div class="md-dialog-head"><h5 class="md-dialog-title">Remove {{ m.name }}?</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-body"><p class="mt-0">Remove <strong>{{ m.name }}</strong> from inventory? This keeps past prescriptions but hides it from new ones.</p><p class="md-caption">Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
+    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ url_for('delete_medicine', medicine_id=m.id) }}" data-confirm="Remove {{ m.name }} from inventory?" class="mt-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Remove</button></form></div>
+</div></div>
+{% endfor %}
+{% endblock %}

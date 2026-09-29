@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Prescription · {{ appointment.patient_name }}{% endblock %}
+{% block page_title %}Prescription{% endblock %}
+{% block crumbs %}rounds · visits · prescription{% endblock %}
+{% block content %}
+<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
+    <div class="md-cluster"><span class="md-avatar" style="width:48px;height:48px;font-size:1.2rem" aria-hidden="true">{{ appointment.patient_name[0]|upper }}</span><div><p class="md-eyebrow">Consultation note</p><h2 class="md-h2">{{ appointment.patient_name }} <span class="md-count-tag">· {{ appointment.age }} / {{ appointment.gender }}</span></h2><p class="md-sub md-mono-nums">{{ appointment.date }} · {{ appointment.time_slot }}</p></div></div>
+    <a href="{{ url_for('doctor_appointments') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>Visits</a>
+</div></div>
+<form method="POST" action="{{ url_for('prescriptions', appointment_id=appointment.id) }}" id="prescriptionForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="md-card"><div class="md-card-head"><h5><i data-lucide="stethoscope"></i>Diagnosis</h5><span class="md-hint">PRINTS VERBATIM</span></div>
+        <div class="md-card-body"><div class="md-field" style="margin:0"><label for="diagnosis">Diagnosis</label><textarea name="diagnosis" id="diagnosis" rows="3" required placeholder="Clinical findings, diagnosis...">{% if prescription %}{{ prescription.diagnosis }}{% endif %}</textarea><p class="md-help">Prints verbatim on the pad copy — keep it concise.</p><p class="md-error-text">Diagnosis is required.</p></div></div></div>
+    <div class="md-card"><div class="md-card-head"><h5><i data-lucide="pill"></i>Medicines</h5><button type="button" class="md-btn md-btn--filled md-btn--sm" id="addMedicine"><i data-lucide="plus"></i>Add medicine</button></div>
+        <div class="md-card-body"><div id="medicinesContainer">
+            {% if prescription and prescription.medicines_parsed %}
+                {% for medicine in prescription.medicines_parsed %}
+                <div class="md-med" data-n="Rx-{{ loop.index }}"><div class="md-med-grid">
+                    <div class="md-field"><label>Name</label><input name="medicine_name_{{ loop.index }}" placeholder="e.g. Paracetamol" value="{{ medicine.name }}" required></div>
+                    <div class="md-field"><label>Dosage</label><input name="medicine_dosage_{{ loop.index }}" placeholder="500mg" value="{{ medicine.dosage }}" required></div>
+                    <div class="md-field"><label>Frequency</label><input name="medicine_frequency_{{ loop.index }}" placeholder="1-0-1" value="{{ medicine.frequency }}" required></div>
+                    <div class="md-field"><label>Meal</label><select name="medicine_meal_{{ loop.index }}"><option value="before" {% if medicine.meal=='before' %}selected{% endif %}>Before meal</option><option value="after" {% if medicine.meal=='after' %}selected{% endif %}>After meal</option></select></div>
+                    <div class="md-timing" role="group" aria-label="Dose timing">
+                        <label class="md-check" title="Morning"><input type="checkbox" name="medicine_morning_{{ loop.index }}" value="1" {% if medicine.morning=='1' %}checked{% endif %}>M</label>
+                        <label class="md-check" title="Afternoon"><input type="checkbox" name="medicine_afternoon_{{ loop.index }}" value="1" {% if medicine.afternoon=='1' %}checked{% endif %}>A</label>
+                        <label class="md-check" title="Evening"><input type="checkbox" name="medicine_evening_{{ loop.index }}" value="1" {% if medicine.evening=='1' %}checked{% endif %}>E</label>
+                    </div>
+                </div><button type="button" class="md-btn md-btn--text md-btn--sm removeMedicine" style="color:var(--md-error);margin-top:0.6rem">Remove</button></div>
+                {% endfor %}
+            {% else %}
+                <div class="md-med" data-n="Rx-1"><div class="md-med-grid">
+                    <div class="md-field"><label>Name</label><input name="medicine_name_1" placeholder="e.g. Paracetamol" required></div>
+                    <div class="md-field"><label>Dosage</label><input name="medicine_dosage_1" placeholder="500mg" required></div>
+                    <div class="md-field"><label>Frequency</label><input name="medicine_frequency_1" placeholder="1-0-1" required></div>
+                    <div class="md-field"><label>Meal</label><select name="medicine_meal_1"><option value="before">Before meal</option><option value="after" selected>After meal</option></select></div>
+                    <div class="md-timing" role="group" aria-label="Dose timing">
+                        <label class="md-check" title="Morning"><input type="checkbox" name="medicine_morning_1" value="1">M</label>
+                        <label class="md-check" title="Afternoon"><input type="checkbox" name="medicine_afternoon_1" value="1">A</label>
+                        <label class="md-check" title="Evening"><input type="checkbox" name="medicine_evening_1" value="1">E</label>
+                    </div>
+                </div><button type="button" class="md-btn md-btn--text md-btn--sm removeMedicine" style="color:var(--md-error);margin-top:0.6rem">Remove</button></div>
+            {% endif %}
+        </div><p class="md-caption">M / A / E = morning · afternoon · evening doses.</p></div></div>
+    <div class="md-card"><div class="md-card-head"><h5><i data-lucide="clipboard-list"></i>Instructions</h5><span class="md-hint">FOLLOW-UP · DIET · REST</span></div>
+        <div class="md-card-body"><div class="md-field"><label for="instructions">Instructions</label><textarea name="instructions" id="instructions" rows="3" placeholder="e.g. Review after 7 days, light diet...">{% if prescription %}{{ prescription.instructions }}{% endif %}</textarea></div></div></div>
+    <div class="md-split">
+        <a href="{{ url_for('doctor_appointments') }}" class="md-btn md-btn--light">Back</a>
+        <div class="md-cluster"><button name="action" value="save" class="md-btn md-btn--outlined" type="submit"><i data-lucide="check"></i>Save only</button><button name="action" value="print" class="md-btn md-btn--filled" type="submit"><i data-lucide="printer"></i>Save &amp; print</button></div>
+    </div>
+    <input type="hidden" id="medicine_count" name="medicine_count" value="{{ prescription.medicines_parsed|length if prescription and prescription.medicines_parsed else 1 }}">
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const box = document.getElementById('medicinesContainer');
+  const count = document.getElementById('medicine_count');
+  const renumber = () => {
+    box.querySelectorAll('.md-med').forEach((row, i) => {
+      const n = i + 1;
+      row.setAttribute('data-n', 'Rx-' + n);
+      row.querySelectorAll('input,select').forEach((inp) => { inp.name = inp.name.replace(/_\d+$/, '') + '_' + n; });
+    });
+    count.value = box.querySelectorAll('.md-med').length;
+  };
+  const medHTML = (n) => `<div class="md-med-grid">
+      <div class="md-field"><label>Name</label><input name="medicine_name_${n}" placeholder="e.g. Paracetamol" required></div>
+      <div class="md-field"><label>Dosage</label><input name="medicine_dosage_${n}" placeholder="500mg" required></div>
+      <div class="md-field"><label>Frequency</label><input name="medicine_frequency_${n}" placeholder="1-0-1" required></div>
+      <div class="md-field"><label>Meal</label><select name="medicine_meal_${n}"><option value="before">Before meal</option><option value="after" selected>After meal</option></select></div>
+      <div class="md-timing" role="group" aria-label="Dose timing">
+        <label class="md-check" title="Morning"><input type="checkbox" name="medicine_morning_${n}" value="1">M</label>
+        <label class="md-check" title="Afternoon"><input type="checkbox" name="medicine_afternoon_${n}" value="1">A</label>
+        <label class="md-check" title="Evening"><input type="checkbox" name="medicine_evening_${n}" value="1">E</label>
+      </div>
+    </div><button type="button" class="md-btn md-btn--text md-btn--sm removeMedicine" style="color:var(--md-error);margin-top:0.6rem">Remove</button>`;
+  document.getElementById('addMedicine').addEventListener('click', () => {
+    const n = box.querySelectorAll('.md-med').length + 1;
+    count.value = n;
+    const div = document.createElement('div');
+    div.className = 'md-med';
+    div.setAttribute('data-n', 'Rx-' + n);
+    div.innerHTML = medHTML(n);
+    box.appendChild(div);
+    div.querySelector('input').focus();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.removeMedicine')) return;
+    if (box.querySelectorAll('.md-med').length <= 1) {
+      if (window.mdNotify) window.mdNotify('At least one medicine is required.', 'warning');
+      box.querySelector('.md-med input').focus();
+      return;
+    }
+    e.target.closest('.md-med').remove();
+    renumber();
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Doctor sign in{% endblock %}
+{% block content %}
+<div class="md-auth-wrap"><div class="md-auth-card">
+    <div class="md-auth-brand">
+        <div>
+            <span class="md-badge" style="background:rgba(255,255,255,0.16);color:#fff;margin-bottom:0.75rem"><i data-lucide="stethoscope"></i>Doctor portal</span>
+            <h2>Your day, in one queue.</h2>
+            <p>Today's visits, patient timelines and prescriptions — nothing else.</p>
+        </div>
+        <ul>
+            <li><span class="tick"><i data-lucide="list-checks"></i></span><span><strong>Today + upcoming</strong><br><small>Work top to bottom</small></span></li>
+            <li><span class="tick"><i data-lucide="history"></i></span><span><strong>Full histories</strong><br><small>Visits + prescriptions together</small></span></li>
+        </ul>
+        <div class="md-auth-proof"><i data-lucide="info"></i><span>CREDENTIALS ARE ISSUED BY YOUR HOSPITAL ADMIN</span></div>
+    </div>
+    <div class="md-auth-form">
+        <p class="file-no" style="font-size:0.66rem;font-weight:500;letter-spacing:0.1em;color:var(--md-outline)">CAREBLUE / DOCTOR ACCESS</p>
+        <h3>Doctor sign in</h3>
+        <p class="muted">Use the username from your admin.</p>
+        <form method="POST" action="{{ url_for('doctor_login') }}" novalidate>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="md-field" style="margin-bottom:0.9rem"><label for="username">Username</label><input id="username" name="username" required autofocus autocomplete="username" placeholder="e.g. dr_meera"></div>
+            <div class="md-field" style="margin-bottom:1.2rem"><label for="password">Password</label><div class="md-pass-wrap"><input type="password" id="password" name="password" required autocomplete="current-password"><button type="button" class="md-pass-toggle" data-pass-toggle="password" aria-label="Show password" aria-pressed="false"><i data-lucide="eye"></i></button></div></div>
+            <button class="md-btn md-btn--filled md-btn--lg md-full" type="submit">Start rounds<i data-lucide="arrow-right"></i></button>
+        </form>
+        <p class="md-caption" style="margin-top:1rem">Locked out? Your admin can reset access from Doctors → Access.</p>
+    </div>
+</div></div>
+{% endblock %}

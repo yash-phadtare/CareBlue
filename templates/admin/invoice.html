@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Invoice #{{ bill.id }}{% endblock %}
+{% block page_title %}Invoice{% endblock %}
+{% block crumbs %}finance · billing · invoice{% endblock %}
+{% block content %}
+<div class="md-page-head no-print"><div class="md-split" style="align-items:flex-end">
+    <div><p class="md-eyebrow">Print check</p><h2 class="md-h2">Invoice #<span class="md-mono-nums">{{ bill.id }}</span></h2><p class="md-sub">Read once, then hand the copy to the patient.</p></div>
+    <a href="{{ url_for('bill_detail', bill_id=bill.id) }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>Back to bill</a>
+</div></div>
+<div class="md-rx" role="document" aria-label="Invoice">
+    <div class="md-rx-head" style="text-align:center">
+        <div class="md-rx-name">{{ hospital_name }}</div>
+        <div class="md-rx-sub">Patient invoice · computer generated</div>
+    </div>
+    <div class="md-rx-box" style="margin-top:1.25rem">
+        <div class="md-rx-meta">
+            <div><span class="md-rx-label">Billed to · </span><strong>{{ bill.patient_name }}</strong><br><span class="md-caption tnum">AGE/SEX {{ bill.age }}/{{ bill.gender|first }} · {{ bill.contact }}</span></div>
+            <div style="text-align:right"><span class="md-rx-label">Invoice · </span><strong class="md-mono-nums">#{{ bill.id }}</strong><br><span class="md-caption tnum">{{ bill.created_at[:10] if bill.created_at else '' }}</span></div>
+        </div>
+    </div>
+    <div class="md-rx-label" style="margin:0 0 0.4rem 2.3rem">Charges</div>
+    <div style="margin-bottom:0.5rem">
+        {% for it in bill['items'] %}
+        <div class="md-rx-med">
+            <div class="md-split"><strong><span class="md-caption md-mono-nums">{{ loop.index }}.</span> {{ it.label }}</strong><span class="md-mono-nums">₹{{ '%.2f'|format(it.amount) }}</span></div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="md-rx-box">
+        <div class="md-rx-meta">
+            <div><span class="md-rx-label">Total · </span><strong class="md-mono-nums">₹{{ '%.2f'|format(bill.total) }}</strong><br><span class="md-rx-label">Paid · </span><strong class="md-mono-nums">₹{{ '%.2f'|format(bill.paid) }}</strong></div>
+            <div style="text-align:right"><span class="md-rx-label">Balance due · </span><strong class="md-mono-nums" style="font-size:1.3rem">₹{{ '%.2f'|format(bill.balance) }}</strong><br><span class="md-badge md-badge--{{ 'done' if bill.status == 'Paid' else ('sched' if bill.status == 'Partial' else 'cancel') }}">{{ bill.status }}</span></div>
+        </div>
+    </div>
+    {% if bill['payments'] %}
+    <div class="md-rx-label" style="margin:0 0 0.4rem 2.3rem">Receipts</div>
+    <div style="margin-bottom:0.5rem">
+        {% for p in bill['payments'] %}
+        <div class="md-rx-med"><div class="md-split"><span class="md-mono-nums">{{ p.created_at }} · {{ p.method }}</span><strong class="md-mono-nums">₹{{ '%.2f'|format(p.amount) }}</strong></div></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if bill.notes %}
+    <div class="md-rx-box"><div class="md-rx-label" style="margin-bottom:0.25rem">Notes</div><p style="margin:0">{{ bill.notes }}</p></div>
+    {% endif %}
+    <div class="md-rx-sign">
+        <div class="sig-line">Patient's signature</div>
+        <div class="sig-line">Authorised signatory + stamp</div>
+    </div>
+    <div class="no-print md-cluster" style="justify-content:center;margin-top:1.5rem">
+        <button onclick="window.print()" class="md-btn md-btn--filled" type="button"><i data-lucide="printer"></i>Print invoice</button>
+        <a href="{{ url_for('bill_detail', bill_id=bill.id) }}" class="md-btn md-btn--outlined"><i data-lucide="arrow-left"></i>Back to bill</a>
+    </div>
+</div>
+{% endblock %}

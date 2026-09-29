@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CareBlue — calm clinic operating system. Doctors, patients, visits and prescriptions.">
+    <meta name="theme-color" content="#1677FF">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231677FF'/%3E%3Cpath d='M32 14v36M14 32h36' stroke='white' stroke-width='9' stroke-linecap='round'/%3E%3C/svg%3E">
+    <title>{% block title %}Dashboard{% endblock %} · CareBlue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="md-glass" {% if session.get('user_id') %}data-session-lifetime="{{ session_lifetime }}"{% endif %}>
+<a class="skip-link" href="#mainContent">Skip to content</a>
+{% if session.get('user_id') %}
+<div class="md-shell">
+    <div class="md-scrim" id="sidebarScrim" onclick="toggleSidebar(false)" aria-hidden="true"></div>
+    <aside class="md-drawer" id="sidebar" aria-label="Primary navigation">
+        <div class="md-brand">
+            <a class="md-brand-link" href="{{ url_for('admin_dashboard') if session.get('user_type') == 'admin' else url_for('doctor_dashboard') }}" aria-label="Go to dashboard">
+                <span class="md-brand-mark" aria-hidden="true"><i data-lucide="plus"></i></span>
+                <span class="md-brand-text">
+                    <span class="md-brand-name">{{ session.get('hospital_name', 'CareBlue') }}</span>
+                    <span class="md-brand-sub">{{ 'Admin' if session.get('user_type') == 'admin' else 'Doctor' }}</span>
+                </span>
+            </a>
+            <button class="md-icon-btn md-icon-btn--sm md-collapse-btn" type="button" onclick="toggleNavCollapse()" aria-label="Collapse sidebar" data-tip="Collapse sidebar"><i data-lucide="panel-left-close"></i></button>
+        </div>
+        <button class="md-expand-fab" type="button" onclick="toggleNavCollapse(false)" aria-label="Expand sidebar" data-tip="Expand sidebar"><i data-lucide="panel-left-open"></i></button>
+
+        <nav class="md-nav">
+            {% if session.get('user_type') == 'admin' %}
+                <div class="md-nav-label">Clinical</div>
+                <a class="md-nav-link {{ 'active' if request.endpoint == 'admin_dashboard' }}" href="{{ url_for('admin_dashboard') }}" {% if request.endpoint == 'admin_dashboard' %}aria-current="page"{% endif %}><i data-lucide="layout-grid"></i><span class="md-nav-text">Dashboard</span></a>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['view_appointments', 'schedule_appointment'] }}" href="{{ url_for('view_appointments') }}" {% if request.endpoint in ['view_appointments', 'schedule_appointment'] %}aria-current="page"{% endif %}><i data-lucide="calendar-check"></i><span class="md-nav-text">Appointments</span></a>
+                <div class="md-nav-label">Operations</div>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['view_doctors', 'add_doctor', 'set_doctor_slots', 'set_doctor_credentials'] }}" href="{{ url_for('view_doctors') }}" {% if request.endpoint in ['view_doctors', 'add_doctor', 'set_doctor_slots', 'set_doctor_credentials'] %}aria-current="page"{% endif %}><i data-lucide="stethoscope"></i><span class="md-nav-text">Doctors</span></a>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['view_patients', 'add_patient'] }}" href="{{ url_for('view_patients') }}" {% if request.endpoint in ['view_patients', 'add_patient'] %}aria-current="page"{% endif %}><i data-lucide="bed-double"></i><span class="md-nav-text">Patients</span></a>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['beds', 'add_ward', 'delete_ward', 'add_bed', 'delete_bed', 'assign_bed', 'discharge_bed', 'maintenance_bed'] }}" href="{{ url_for('beds') }}" {% if request.endpoint in ['beds'] %}aria-current="page"{% endif %}><i data-lucide="bed-single"></i><span class="md-nav-text">Beds &amp; wards</span></a>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['pharmacy', 'add_medicine', 'update_medicine', 'adjust_stock', 'delete_medicine'] }}" href="{{ url_for('pharmacy') }}" {% if request.endpoint in ['pharmacy'] %}aria-current="page"{% endif %}><i data-lucide="pill"></i><span class="md-nav-text">Pharmacy</span></a>
+                <div class="md-nav-label">Finance</div>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['billing', 'new_bill', 'create_bill', 'bill_detail', 'record_payment', 'delete_bill', 'bill_invoice'] }}" href="{{ url_for('billing') }}" {% if request.endpoint in ['billing', 'new_bill', 'create_bill', 'bill_detail', 'record_payment', 'delete_bill', 'bill_invoice'] %}aria-current="page"{% endif %}><i data-lucide="receipt-indian-rupee"></i><span class="md-nav-text">Billing</span></a>
+                <div class="md-nav-label">Quick actions</div>
+                <a class="md-nav-link {{ 'active' if request.endpoint == 'schedule_appointment' }}" href="{{ url_for('schedule_appointment') }}" {% if request.endpoint == 'schedule_appointment' %}aria-current="page"{% endif %}><i data-lucide="calendar-plus"></i><span class="md-nav-text">Schedule visit</span></a>
+                <a class="md-nav-link" href="{{ url_for('export_appointments') }}"><i data-lucide="download"></i><span class="md-nav-text">Export visits</span></a>
+                <div class="md-nav-label">System</div>
+                <a class="md-nav-link {{ 'active' if request.endpoint == 'audit_log_view' }}" href="{{ url_for('audit_log_view') }}" {% if request.endpoint == 'audit_log_view' %}aria-current="page"{% endif %}><i data-lucide="scroll-text"></i><span class="md-nav-text">Audit log</span></a>
+            {% else %}
+                <div class="md-nav-label">Desk</div>
+                <a class="md-nav-link {{ 'active' if request.endpoint == 'doctor_dashboard' }}" href="{{ url_for('doctor_dashboard') }}" {% if request.endpoint == 'doctor_dashboard' %}aria-current="page"{% endif %}><i data-lucide="layout-grid"></i><span class="md-nav-text">Dashboard</span></a>
+                <div class="md-nav-label">Rounds</div>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['doctor_appointments', 'prescriptions', 'print_prescription'] }}" href="{{ url_for('doctor_appointments') }}" {% if request.endpoint in ['doctor_appointments', 'prescriptions', 'print_prescription'] %}aria-current="page"{% endif %}><i data-lucide="calendar-check"></i><span class="md-nav-text">My visits</span>{% if today_count %}<span class="md-count">{{ today_count }}</span>{% endif %}</a>
+                <a class="md-nav-link {{ 'active' if request.endpoint in ['all_patients_history', 'patient_history'] }}" href="{{ url_for('all_patients_history') }}" {% if request.endpoint in ['all_patients_history', 'patient_history'] %}aria-current="page"{% endif %}><i data-lucide="users"></i><span class="md-nav-text">Patients</span></a>
+            {% endif %}
+        </nav>
+
+        <div class="md-drawer-foot">
+            <span class="md-avatar" style="width:30px;height:30px;font-size:0.8rem" aria-hidden="true">{{ session.get('name', 'U')[0]|upper }}</span>
+            <span class="md-foot-text">Signed in · <strong>{{ session.get('name', 'User') }}</strong><br><span style="font-size:0.7rem">{{ session.get('user_type', '')|capitalize }}</span></span>
+        </div>
+    </aside>
+
+    <div class="md-main">
+        <header class="md-topbar">
+            <button class="md-icon-btn md-menu-btn" type="button" onclick="toggleSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><i data-lucide="menu"></i></button>
+            <div style="flex:1;min-width:0">
+                <p class="md-crumbs"><a href="{{ url_for('admin_dashboard') if session.get('user_type') == 'admin' else url_for('doctor_dashboard') }}">home</a><i data-lucide="chevron-right"></i><span>{% block crumbs %}overview{% endblock %}</span></p>
+                <p class="md-topbar-title">{% block page_title %}Dashboard{% endblock %}</p>
+            </div>
+            <div class="md-top-actions">
+                <button class="md-icon-btn hide-on-mobile" type="button" data-md-palette-open aria-label="Search (Ctrl+K)" data-tip="Search (Ctrl+K)"><i data-lucide="search"></i></button>
+                <div class="md-menu-wrap hide-on-mobile">
+                    <button class="md-icon-btn" type="button" data-md-menu="notifMenu" aria-label="Notifications" aria-expanded="false" data-tip="Notifications"><i data-lucide="bell"></i>{% if today_count %}<span class="md-notif-dot" aria-hidden="true">{{ today_count }}</span>{% endif %}</button>
+                    <div class="md-menu" id="notifMenu" role="menu" aria-label="Notifications">
+                        <div class="md-menu-head"><strong>Today</strong><br><span class="md-caption">{{ today_count or 0 }} scheduled visit(s) · {{ now().strftime('%a %d %b') }}</span></div>
+                        <a href="{{ url_for('view_appointments') if session.get('user_type') == 'admin' else url_for('doctor_appointments') }}" role="menuitem"><i data-lucide="calendar-check"></i>Open today's queue</a>
+                    </div>
+                </div>
+                {% if session.get('user_type') == 'admin' %}
+                <div class="md-menu-wrap hide-on-mobile">
+                    <button class="md-icon-btn md-icon-btn--filled" type="button" data-md-menu="quickMenu" aria-label="Quick actions" aria-expanded="false" data-tip="Quick actions"><i data-lucide="plus"></i></button>
+                    <div class="md-menu" id="quickMenu" role="menu" aria-label="Quick actions">
+                        <a href="{{ url_for('add_patient') }}" role="menuitem"><i data-lucide="user-plus"></i>New patient</a>
+                        <a href="{{ url_for('add_doctor') }}" role="menuitem"><i data-lucide="stethoscope"></i>New doctor</a>
+                        <a href="{{ url_for('schedule_appointment') }}" role="menuitem"><i data-lucide="calendar-plus"></i>New visit</a>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="md-menu-wrap md-overflow-wrap">
+                    <button class="md-icon-btn md-overflow-btn" type="button" data-md-menu="overflowMenu" aria-label="More actions" aria-expanded="false"><i data-lucide="ellipsis-vertical"></i></button>
+                    <div class="md-menu" id="overflowMenu" role="menu" aria-label="More actions">
+                        <button type="button" class="md-menu-item" data-md-palette-open role="menuitem"><i data-lucide="search"></i>Search (Ctrl+K)</button>
+                        <a href="{{ url_for('view_appointments') if session.get('user_type') == 'admin' else url_for('doctor_appointments') }}" role="menuitem"><i data-lucide="bell"></i>Notifications{% if today_count %} ({{ today_count }}){% endif %}</a>
+                        {% if session.get('user_type') == 'admin' %}
+                        <a href="{{ url_for('add_patient') }}" role="menuitem"><i data-lucide="user-plus"></i>New patient</a>
+                        <a href="{{ url_for('schedule_appointment') }}" role="menuitem"><i data-lucide="calendar-plus"></i>New visit</a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="md-menu-wrap">
+                    <button class="md-assist-chip" type="button" data-md-menu="profileMenu" aria-expanded="false" aria-label="Profile menu"><span class="md-avatar" style="width:26px;height:26px;font-size:0.72rem" aria-hidden="true">{{ session.get('name', 'U')[0]|upper }}</span><strong>{{ session.get('name', 'User') }}</strong></button>
+                    <div class="md-menu" id="profileMenu" role="menu" aria-label="Profile">
+                        <div class="md-menu-head"><strong>{{ session.get('name', 'User') }}</strong><br><span class="md-caption">{{ session.get('user_type', '')|capitalize }} · {{ session.get('hospital_name', '') }}</span></div>
+                        <a href="{{ url_for('logout') }}" role="menuitem"><i data-lucide="log-out"></i>Log out</a>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="md-content" id="mainContent" tabindex="-1">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</div>
+
+<div class="md-palette-backdrop" id="paletteBackdrop">
+    <div class="md-palette" role="dialog" aria-modal="true" aria-label="Quick search">
+        <div class="md-palette-input"><i data-lucide="search"></i><input id="paletteInput" type="text" placeholder="Go to… or type a patient name, then Enter" autocomplete="off" aria-label="Quick search"></div>
+        <div class="md-palette-list" id="paletteList" role="listbox" aria-label="Actions"></div>
+        <div class="md-palette-foot"><span><span class="md-kbd">↑↓</span> navigate</span><span><span class="md-kbd">↵</span> open / search patients</span><span><span class="md-kbd">esc</span> close</span></div>
+    </div>
+</div>
+
+<div class="md-snack-stack" aria-live="polite" aria-atomic="false">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+            <div class="md-snackbar md-snackbar--{{ category }}" role="status">
+                <i data-lucide="{% if category == 'success' %}check{% elif category == 'danger' %}x{% elif category == 'warning' %}triangle-alert{% else %}info{% endif %}"></i>
+                <span>{{ message }}</span>
+                <button type="button" data-md-dismiss aria-label="Dismiss notification">Dismiss</button>
+            </div>
+        {% endfor %}{% endif %}
+    {% endwith %}
+</div>
+{% else %}
+<div class="md-guest">
+<nav class="md-guest-nav" aria-label="Public" style="background:rgba(247,242,250,0.8);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)">
+    <div class="md-guest-hero md-split" style="padding:0.8rem 1.5rem">
+        <a class="md-brand" href="{{ url_for('home') }}" style="padding:0"><span class="md-brand-mark" style="width:36px;height:36px" aria-hidden="true"><i data-lucide="plus"></i></span><span class="md-brand-name">CareBlue</span></a>
+        <div class="md-cluster">
+            <a class="md-btn md-btn--outlined md-btn--sm" href="{{ url_for('login') }}">Log in</a>
+            <a class="md-btn md-btn--filled md-btn--sm" href="{{ url_for('register') }}">Register hospital</a>
+        </div>
+    </div>
+</nav>
+<main class="md-guest-hero" id="mainContent" tabindex="-1" style="padding:0 1.5rem">
+    {% block guest_content %}{% endblock %}
+    {{ self.content() }}
+</main>
+<div class="md-snack-stack" aria-live="polite" aria-atomic="false">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}{% for category, message in messages %}
+            <div class="md-snackbar md-snackbar--{{ category }}" role="status">
+                <i data-lucide="info"></i>
+                <span>{{ message }}</span>
+                <button type="button" data-md-dismiss aria-label="Dismiss notification">Dismiss</button>
+            </div>
+        {% endfor %}{% endif %}
+    {% endwith %}
+</div>
+</div>
+{% endif %}
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+<script>if (window.lucide) { lucide.createIcons({ attrs: { 'stroke-width': 1.5 } }); }</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

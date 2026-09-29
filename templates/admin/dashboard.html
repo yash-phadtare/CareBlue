@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Today{% endblock %}
+{% block crumbs %}today{% endblock %}
+
+{% block content %}
+{% set open = todays_appointments|selectattr('status', 'equalto', 'Scheduled')|list|length %}
+{% set total_today = todays_appointments|length %}
+{% set serving = (todays_appointments|selectattr('status', 'equalto', 'Scheduled')|list|first) %}
+<div class="day-head">
+    <div>
+        <p class="md-kicker">{{ now().strftime('%A') }}, {{ now().day }} {{ now().strftime('%B') }}</p>
+        <h2 class="day-title">{{ total_today }} visit{{ 's' if total_today != 1 }} today{% if open %} · {{ open }} waiting{% endif %}</h2>
+    </div>
+    <div class="md-cluster">
+        <a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--filled md-btn--sm"><i data-lucide="calendar-plus"></i>Schedule a visit</a>
+        <a href="{{ url_for('add_patient') }}" class="md-btn md-btn--outlined md-btn--sm"><i data-lucide="user-plus"></i>Add patient</a>
+    </div>
+</div>
+
+<div class="md-card mb-1" aria-label="Today's visits">
+    <div class="md-card-head"><h5>Today's queue</h5><span class="md-hint">{{ today }}</span></div>
+    <div class="md-card-body">
+        {% if todays_appointments %}
+        <div class="tk-list" role="list" aria-label="Today's appointment queue">
+        {% for app in todays_appointments[:5] %}
+        <div class="tk-row" role="listitem">
+            <span class="tk-num" aria-hidden="true">{{ '%02d' % loop.index }}</span>
+            <div class="tk-main">
+                <div class="tk-name"><span>{{ app.patient_name }}</span>{% if serving and app.patient_name == serving.patient_name and app.time_slot == serving.time_slot %}<span class="tk-live"><i></i>Now serving</span>{% endif %}</div>
+                <div class="tk-sub">{{ app.time_slot }} · Dr. {{ app.doctor_name }}</div>
+            </div>
+            <span class="st {{ 'st--done' if app.status == 'Completed' else ('st--cancel' if app.status == 'Cancelled' else '') }}">{{ app.status }}</span>
+        </div>
+        {% endfor %}
+        </div>
+        {% else %}
+        <p style="margin:0">Nothing booked today — the queue is clear.</p>
+        {% endif %}
+        <div class="md-queue-foot">
+            <a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--tonal md-btn--sm"><i data-lucide="plus"></i>Book a visit</a>
+            <a href="{{ url_for('view_appointments') }}" class="md-btn md-btn--text md-btn--sm">Open full register<i data-lucide="arrow-right"></i></a>
+        </div>
+    </div>
+</div>
+
+<div class="ledger" aria-label="Registry figures">
+    <a class="ledger-cell" href="{{ url_for('view_doctors') }}"><span class="ledger-num">{{ doctors_count }}</span><span class="ledger-cap">Doctors on roster · <b>Open</b></span></a>
+    <a class="ledger-cell" href="{{ url_for('view_patients') }}"><span class="ledger-num">{{ patients_count }}</span><span class="ledger-cap">Patients on record · <b>Open</b></span></a>
+    <a class="ledger-cell" href="{{ url_for('view_appointments') }}"><span class="ledger-num">{{ appointments_count }}</span><span class="ledger-cap">Visits total · <b>{{ total_today }} today</b></span></a>
+</div>
+
+<div class="md-card">
+    <div class="md-card-head"><h5>Recent visits</h5><a href="{{ url_for('view_appointments') }}" class="md-btn md-btn--text md-btn--sm">Full register</a></div>
+    <div class="md-card-body--flush md-card-body">
+        {% if recent_appointments %}
+        <div class="md-table-scroll"><table class="md-table"><caption class="md-sr-only">Recent visits</caption>
+            <thead><tr><th scope="col">#</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">When</th><th scope="col">Status</th></tr></thead>
+            <tbody>{% for app in recent_appointments %}<tr>
+                <td class="md-row-no">{{ '%02d' % loop.index }}</td>
+                <td><span class="who">{{ app.patient_name }}</span></td>
+                <td>Dr. {{ app.doctor_name }}</td>
+                <td class="md-mono-nums">{{ app.date }} · {{ app.time_slot }}</td>
+                <td><span class="st {{ 'st--done' if app.status == 'Completed' else ('st--cancel' if app.status == 'Cancelled' else '') }}">{{ app.status }}</span></td>
+            </tr>{% endfor %}</tbody>
+        </table></div>
+        {% else %}
+        <div class="md-empty"><h5>No visits yet</h5><p>Schedule the first appointment to start the record.</p><a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--filled md-btn--sm">Schedule first visit</a></div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

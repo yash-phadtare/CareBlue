@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}My day{% endblock %}
+{% block page_title %}My day{% endblock %}
+{% block crumbs %}rounds{% endblock %}
+{% block content %}
+{% set open_today = appointments_today|selectattr('status', 'equalto', 'Scheduled')|list|length %}
+{% set serving = (appointments_today|selectattr('status', 'equalto', 'Scheduled')|list|first) %}
+{% set seen = appointments_today|rejectattr('status', 'equalto', 'Scheduled')|list %}
+<div class="day-head">
+    <div>
+        <p class="md-kicker">Rounds · {{ now().strftime('%A') }}, {{ now().day }} {{ now().strftime('%B') }}</p>
+        <h2 class="day-title">{{ appointments_today|length }} consultation{{ 's' if appointments_today|length != 1 }} today{% if open_today %} · {{ open_today }} still waiting{% else %} · queue clear{% endif %}</h2>
+    </div>
+    <div class="md-cluster">
+        <a href="{{ url_for('all_patients_history') }}" class="md-btn md-btn--outlined md-btn--sm"><i data-lucide="users"></i>My patients</a>
+        <a href="{{ url_for('doctor_appointments') }}" class="md-btn md-btn--text md-btn--sm">All visits</a>
+    </div>
+</div>
+
+{% if serving %}
+<div class="now-card" role="region" aria-label="Currently serving">
+    <p class="now-kicker"><i></i>Now seeing</p>
+    <p class="now-name">{{ serving.patient_name }}</p>
+    <p class="now-meta">{{ serving.time_slot }}{% if serving.age %} · {{ serving.age }}{% if serving.gender %} / {{ serving.gender }}{% endif %}{% endif %}</p>
+    <div class="md-cluster">
+        <a href="{{ url_for('prescriptions', appointment_id=serving.id) }}" class="md-btn md-btn--filled md-btn--sm"><i data-lucide="pill"></i>Write prescription</a>
+        <a href="{{ url_for('patient_history', patient_id=serving.patient_id) }}" class="md-btn md-btn--outlined md-btn--sm">History</a>
+        <form method="POST" action="{{ url_for('update_appointment_status', appointment_id=serving.id) }}" class="mt-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="Completed"><button class="md-btn md-btn--outlined md-btn--sm" type="submit">Complete</button></form>
+        <form method="POST" action="{{ url_for('update_appointment_status', appointment_id=serving.id) }}" class="mt-0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="Cancelled"><button class="md-btn md-btn--text md-btn--sm text-danger" type="submit">Cancel</button></form>
+    </div>
+</div>
+{% endif %}
+
+<div class="md-main-2col">
+    <div class="md-stack">
+    <div class="md-card"><div class="md-card-head"><h5>Waiting</h5><span class="md-hint">{{ open_today - (1 if serving else 0) }} BEHIND</span></div><div class="md-card-body">
+        {% set ns = namespace(found=false, n=0) %}
+        {% for app in appointments_today %}{% if app.status == 'Scheduled' and not (serving and app.id == serving.id) %}{% set ns.found = true %}{% set ns.n = ns.n + 1 %}
+        <div class="tk-row" role="listitem">
+            <span class="tk-num" aria-hidden="true">{{ '%02d' % ns.n }}</span>
+            <div class="tk-main">
+                <div class="tk-name"><span>{{ app.patient_name }}</span></div>
+                <div class="tk-sub">{{ app.time_slot }}</div>
+            </div>
+        </div>
+        <div class="md-cluster" style="padding:0 4px 10px 46px">
+            <a href="{{ url_for('prescriptions', appointment_id=app.id) }}" class="md-btn md-btn--outlined md-btn--sm">Prescribe</a>
+            <a href="{{ url_for('patient_history', patient_id=app.patient_id) }}" class="md-btn md-btn--text md-btn--sm">History</a>
+        </div>
+        {% endif %}{% endfor %}
+        {% if not ns.found %}<p style="margin:0">{% if serving %}Nobody else waiting behind the current patient.{% else %}No visits scheduled for today.{% endif %}</p>{% endif %}
+    </div></div>
+    {% if seen %}
+    <div class="md-card"><div class="md-card-head"><h5>Seen today</h5><span class="md-hint">{{ seen|length }} DONE</span></div><div class="md-card-body">
+        <div class="tk-list">
+        {% for app in seen %}
+        <div class="tk-row" role="listitem">
+            <div class="tk-main">
+                <div class="tk-name"><span>{{ app.patient_name }}</span></div>
+                <div class="tk-sub">{{ app.time_slot }}</div>
+            </div>
+            <span class="st {{ 'st--done' if app.status == 'Completed' else 'st--cancel' }}">{{ app.status }}</span>
+        </div>
+        {% endfor %}
+        </div>
+    </div></div>
+    {% endif %}
+    <div class="md-card"><div class="md-card-head"><h5>Week ahead</h5><span class="md-hint">VISITS / DAY</span></div><div class="md-card-body">
+        {% set maxc = [week_counts.values()|list|sum, 1]|max %}
+        <div class="md-weekbars" role="img" aria-label="Your visits per day for the coming week">
+            {% for d in week_days %}
+            {% set c = week_counts.get(d.date, 0) %}
+            <div class="md-weekbar{% if loop.first %} today{% endif %}"><i style="height:{{ (c / maxc * 100)|round(0) }}%" title="{{ c }} visits on {{ d.date }}"></i><span>{{ d.dow[:2] }}</span></div>
+            {% endfor %}
+        </div>
+    </div></div>
+    </div>
+    <div class="md-stack">
+    <div class="ledger" aria-label="Queue figures" style="margin-bottom:0">
+        <a class="ledger-cell" href="{{ url_for('doctor_appointments') }}"><span class="ledger-num">{{ appointments_today|length }}</span><span class="ledger-cap">Today</span></a>
+        <a class="ledger-cell" href="{{ url_for('doctor_appointments') }}"><span class="ledger-num">{{ upcoming_appointments|length }}</span><span class="ledger-cap">Booked ahead</span></a>
+        <div class="ledger-cell"><span class="ledger-num">{{ open_today }}</span><span class="ledger-cap">Still open</span></div>
+    </div>
+    <div class="md-card"><div class="md-card-head"><h5>Coming up</h5><span class="md-hint">NEXT 5</span></div><div class="md-card-body">
+        {% if upcoming_appointments %}<div class="md-timeline">{% for app in upcoming_appointments %}
+        <div class="md-timeline-item"><span class="md-timeline-dot">{{ '%02d' % loop.index }}</span>
+            <div style="flex:1;min-width:0"><div class="md-split"><strong>{{ app.patient_name }}</strong><span class="md-caption md-mono-nums">{{ app.date }} · {{ app.time_slot }}</span></div>
+            <div class="md-cluster" style="margin-top:0.5rem">
+                <form method="POST" action="{{ url_for('update_appointment_status', appointment_id=app.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="Completed"><button class="md-btn md-btn--outlined md-btn--sm" type="submit">Mark complete</button></form>
+                <form method="POST" action="{{ url_for('update_appointment_status', appointment_id=app.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="Cancelled"><button class="md-btn md-btn--text md-btn--sm text-danger" type="submit">Cancel</button></form>
+            </div></div>
+        </div>{% endfor %}</div>
+        {% else %}<div class="md-empty"><h5>Nothing ahead</h5><p>No upcoming appointments.</p></div>{% endif %}
+    </div></div>
+    </div>
+</div>
+{% endblock %}

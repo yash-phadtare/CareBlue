@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}New bill{% endblock %}
+{% block page_title %}New bill{% endblock %}
+{% block crumbs %}finance · billing · new{% endblock %}
+{% block content %}
+<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
+    <div><p class="md-eyebrow">Raise invoice</p><h2 class="md-h2">New bill</h2><p class="md-sub">Pick a patient, optionally link a visit for its consultation fee, then add items.</p></div>
+    <a href="{{ url_for('billing') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>All bills</a>
+</div></div>
+<div class="md-card" style="max-width:880px"><div class="md-card-body">
+    <form method="POST" action="{{ url_for('create_bill') }}" id="billForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="md-form-section"><h6><span class="md-sec-no">A</span>Bill for</h6>
+        <div class="md-grid-2 toolbar-gap">
+            <div class="md-field"><label for="patient_id">Patient</label>
+                <select id="patient_id" name="patient_id" required data-searchable>
+                    <option value="">Select patient</option>
+                    {% for p in patients %}<option value="{{ p.id }}" {% if preselect_patient == p.id|string %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                </select><p class="md-error-text">Choose a patient.</p></div>
+            <div class="md-field"><label for="appointment_id">Linked visit (optional)</label>
+                <select id="appointment_id" name="appointment_id" data-searchable>
+                    <option value="">No linked visit</option>
+                    {% for v in visits %}<option value="{{ v.id }}" data-patient="{{ v.patient_id }}" {% if preselect_visit == v.id|string %}selected{% endif %}>#{{ v.id }} · {{ v.patient_name }} · {{ v.date }} (Dr. {{ v.doctor_name }})</option>{% endfor %}
+                </select>
+                <p class="md-help">Only unbilled, non-cancelled visits are listed. Consultation fee is added automatically.</p></div>
+        </div>
+        </div>
+        <div class="md-form-section"><div class="md-section-head" style="margin:0 0 0.9rem"><h6 style="margin:0"><span class="md-sec-no">B</span>Line items</h6><button type="button" class="md-btn md-btn--tonal md-btn--sm" id="addItem"><i data-lucide="plus"></i>Add item</button></div>
+        <div id="itemsContainer">
+            <div class="md-med" data-n="Item-1"><div class="md-med-grid" style="grid-template-columns:2fr 1fr auto">
+                <div class="md-field"><label>Label</label><input name="item_label_1" placeholder="e.g. Blood test — CBC" required></div>
+                <div class="md-field"><label>Amount (₹)</label><input name="item_amount_1" type="number" min="0" step="0.01" placeholder="250.00" required></div>
+                <div><button type="button" class="md-btn md-btn--text md-btn--sm removeItem" style="color:var(--md-error);margin-top:1.9rem">Remove</button></div>
+            </div></div>
+        </div>
+        <div class="md-field" style="margin:0"><label for="notes">Notes (optional)</label><textarea id="notes" name="notes" rows="2" placeholder="Payment terms, insurance reference..."></textarea><p class="md-help">Printed at the foot of the invoice.</p></div>
+        </div>
+        <div class="md-cluster md-cluster--end" style="margin-top:1.25rem">
+            <a href="{{ url_for('billing') }}" class="md-btn md-btn--light">Cancel</a>
+            <button type="submit" class="md-btn md-btn--filled"><i data-lucide="check"></i>Raise bill</button>
+        </div>
+        <input type="hidden" id="item_count" name="item_count" value="1">
+    </form>
+</div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const box = document.getElementById('itemsContainer');
+  const count = document.getElementById('item_count');
+  const visitSel = document.getElementById('appointment_id');
+  const patientSel = document.getElementById('patient_id');
+  // Keep visit choice consistent with the chosen patient
+  visitSel.addEventListener('change', () => {
+    const opt = visitSel.selectedOptions[0];
+    if (opt && opt.dataset.patient) patientSel.value = opt.dataset.patient;
+  });
+  const renumber = () => {
+    box.querySelectorAll('.md-med').forEach((row, i) => {
+      const n = i + 1;
+      row.setAttribute('data-n', 'Item-' + n);
+      row.querySelectorAll('input').forEach((inp) => { inp.name = inp.name.replace(/_\d+$/, '') + '_' + n; });
+    });
+    count.value = box.querySelectorAll('.md-med').length;
+  };
+  document.getElementById('addItem').addEventListener('click', () => {
+    const n = box.querySelectorAll('.md-med').length + 1;
+    count.value = n;
+    const div = document.createElement('div');
+    div.className = 'md-med';
+    div.setAttribute('data-n', 'Item-' + n);
+    div.innerHTML = `<div class="md-med-grid" style="grid-template-columns:2fr 1fr auto"><div class="md-field"><label>Label</label><input name="item_label_${n}" placeholder="e.g. X-ray chest" required></div><div class="md-field"><label>Amount (₹)</label><input name="item_amount_${n}" type="number" min="0" step="0.01" placeholder="0.00" required></div><div><button type="button" class="md-btn md-btn--text md-btn--sm removeItem" style="color:var(--md-error);margin-top:1.9rem">Remove</button></div></div>`;
+    box.appendChild(div);
+    div.querySelector('input').focus();
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.removeItem')) return;
+    if (box.querySelectorAll('.md-med').length <= 1) {
+      if (window.mdNotify) window.mdNotify('At least one line item is required.', 'warning');
+      e.target.closest('.md-med').querySelector('input').focus();
+      return;
+    }
+    e.target.closest('.md-med').remove();
+    renumber();
+  });
+});
+</script>
+{% endblock %}

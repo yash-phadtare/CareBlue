@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Bill #{{ bill.id }}{% endblock %}
+{% block page_title %}Bill #{{ bill.id }}{% endblock %}
+{% block crumbs %}finance · billing · detail{% endblock %}
+{% block content %}
+<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
+    <div class="md-cluster"><span class="md-avatar" style="width:48px;height:48px;font-size:1.2rem" aria-hidden="true">{{ bill.patient_name[0]|upper }}</span><div><p class="md-eyebrow">Invoice · {{ bill.created_at[:10] if bill.created_at else '' }}</p><h2 class="md-h2">{{ bill.patient_name }}</h2><p class="md-sub tnum">{{ bill.age }} yrs · {{ bill.gender }} · {{ bill.contact }}</p></div></div>
+    <div class="md-cluster">
+        <a href="{{ url_for('bill_invoice', bill_id=bill.id) }}" class="md-btn md-btn--outlined"><i data-lucide="printer"></i>Invoice</a>
+        <a href="{{ url_for('billing') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>Bills</a>
+    </div>
+</div></div>
+<div class="md-main-2col">
+    <div class="md-stack">
+        <div class="md-card"><div class="md-card-head"><h5><i data-lucide="receipt-text"></i>Line items</h5><span class="md-badge md-badge--{{ 'done' if bill.status == 'Paid' else ('sched' if bill.status == 'Partial' else 'cancel') }}">{{ bill.status }}</span></div>
+            <div class="md-card-body md-card-body--flush">
+                <div class="md-table-scroll"><table class="md-table">
+                    <thead><tr><th scope="col">#</th><th scope="col">Item</th><th scope="col" style="text-align:right">Amount</th></tr></thead>
+                    <tbody>{% for it in bill['items'] %}<tr><td class="md-row-no">{{ '%02d' % loop.index }}</td><td>{{ it.label }}</td><td class="md-mono-nums" style="text-align:right">₹{{ '%.2f'|format(it.amount) }}</td></tr>{% endfor %}</tbody>
+                </table></div>
+                <div class="md-split" style="padding:1rem 1.5rem">
+                    <span class="md-sub">Total</span><strong class="md-mono-nums" style="font-size:1.25rem">₹{{ '%.2f'|format(bill.total) }}</strong>
+                </div>
+            </div></div>
+        <div class="md-card"><div class="md-card-head"><h5><i data-lucide="wallet"></i>Payments <span class="md-count-tag">· {{ bill['payments']|length }}</span></h5></div>
+            <div class="md-card-body md-card-body--flush">
+                {% if bill['payments'] %}
+                <div class="md-table-scroll"><table class="md-table">
+                    <thead><tr><th scope="col">#</th><th scope="col">When</th><th scope="col">Method</th><th scope="col" style="text-align:right">Amount</th></tr></thead>
+                    <tbody>{% for p in bill['payments'] %}<tr><td class="md-row-no">{{ '%02d' % loop.index }}</td><td class="md-mono-nums">{{ p.created_at }}</td><td>{{ p.method }}</td><td class="md-mono-nums" style="text-align:right">₹{{ '%.2f'|format(p.amount) }}</td></tr>{% endfor %}</tbody>
+                </table></div>
+                {% else %}
+                <div class="md-empty" style="padding:1.75rem"><p style="margin:0">No payments recorded yet.</p></div>
+                {% endif %}
+            </div></div>
+    </div>
+    <div class="md-stack">
+        <div class="md-card"><div class="md-card-head"><h5><i data-lucide="scale"></i>Balance</h5></div>
+            <div class="md-card-body">
+                <div class="md-split" style="margin-bottom:0.4rem"><span class="md-sub">Billed</span><strong class="md-mono-nums">₹{{ '%.2f'|format(bill.total) }}</strong></div>
+                <div class="md-split" style="margin-bottom:0.4rem"><span class="md-sub">Paid</span><strong class="md-mono-nums">₹{{ '%.2f'|format(bill.paid) }}</strong></div>
+                <hr style="border:0;border-top:1px solid var(--md-outline-variant);margin:0.75rem 0">
+                <div class="md-split"><span><strong>Due</strong></span><strong class="md-mono-nums" style="font-size:1.4rem">₹{{ '%.2f'|format(bill.balance) }}</strong></div>
+                {% if bill.balance > 0 %}
+                <hr style="border:0;border-top:1px solid var(--md-outline-variant);margin:0.75rem 0">
+                <form method="POST" action="{{ url_for('record_payment', bill_id=bill.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="md-field" style="margin-bottom:0.9rem"><label for="amount">Payment amount (₹)</label><input id="amount" name="amount" type="number" min="0.01" step="0.01" max="{{ bill.balance }}" required placeholder="0.00"></div>
+                    <div class="md-field" style="margin-bottom:1rem"><label for="method">Method</label><select id="method" name="method" required>{% for m in methods %}<option>{{ m }}</option>{% endfor %}</select></div>
+                    <button class="md-btn md-btn--filled md-full" type="submit"><i data-lucide="check"></i>Record payment</button>
+                </form>
+                {% else %}
+                <div class="md-banner-inline md-banner-inline--info" style="margin-top:0.9rem"><i data-lucide="check"></i><span>Settled in full.</span></div>
+                {% endif %}
+            </div></div>
+        {% if not bill['payments'] %}
+        <div class="md-card"><div class="md-card-body">
+            <div class="md-section-head"><h6>Danger zone</h6></div>
+            <p class="md-sub" style="margin-bottom:0.8rem">Bills with payments cannot be deleted.</p>
+            <button class="md-btn md-btn--outlined md-full" style="color:var(--md-error)" data-md-open="delBill"><i data-lucide="trash-2"></i>Delete bill</button>
+        </div></div>
+        {% endif %}
+    </div>
+</div>
+<div class="md-dialog-backdrop" data-md-dialog="delBill" role="dialog" aria-modal="true" aria-label="Delete bill"><div class="md-dialog">
+    <div class="md-dialog-head"><h5 class="md-dialog-title">Delete bill #{{ bill.id }}?</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-body"><p style="margin:0">Patient <strong>{{ bill.patient_name }}</strong> · Hospital <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
+    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ url_for('delete_bill', bill_id=bill.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Delete</button></form></div>
+</div></div>
+{% endblock %}
