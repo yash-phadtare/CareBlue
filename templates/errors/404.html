@@ -7,6 +7,7 @@
     <p class="md-caption" style="letter-spacing:0.1em">ERROR 404</p>
     <h5 style="font-size:1.4rem">This page drifted away</h5>
     <p>The link may be broken, or the record was removed. Head home or step back.</p>
+    {% if path %}<p class="md-caption" style="opacity:0.6">Requested path: {{ path }}</p>{% endif %}
     <div class="md-cluster" style="justify-content:center"><a href="{{ url_for('home') }}" class="md-btn md-btn--filled">Go home</a><button class="md-btn md-btn--light" onclick="history.back()" type="button">Go back</button></div>
 </div></div>
 {% endblock %}

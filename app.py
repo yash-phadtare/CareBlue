@@ -2355,7 +2355,9 @@ def audit_log_view():
 
 @app.errorhandler(404)
 def not_found_error(error):
-    return render_template('errors/404.html'), 404
+    # `path` is a deployment diagnostic: on Vercel it reveals whether Flask
+    # received the original URL or the rewritten function path.
+    return render_template('errors/404.html', path=request.path), 404
 
 if __name__ == '__main__':
     # Ensure database exists and is initialized
