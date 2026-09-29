@@ -23,15 +23,21 @@ _secret_key = os.environ.get('SECRET_KEY')
 if not _secret_key:
     if os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER'):
         raise RuntimeError("SECRET_KEY environment variable must be set in production")
-    logger.warning("SECRET_KEY not set — using an ephemeral development key. Set SECRET_KEY env var.")
+    if 'VERCEL' in os.environ:
+        logger.warning("SECRET_KEY not set on Vercel — using an ephemeral key. "
+                       "Set SECRET_KEY in Vercel env vars or sessions will reset on cold starts.")
+    else:
+        logger.warning("SECRET_KEY not set — using an ephemeral development key. Set SECRET_KEY env var.")
     _secret_key = secrets.token_hex(32)
 app.secret_key = _secret_key
-app.config['UPLOAD_FOLDER'] = 'static/images/doctors'
+# Vercel serverless: only /tmp is writable; uploaded photos are ephemeral.
+_ON_VERCEL = 'VERCEL' in os.environ
+app.config['UPLOAD_FOLDER'] = os.path.join('/tmp', 'careblue-uploads') if _ON_VERCEL else 'static/images/doctors'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB upload cap
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production' or 'RENDER' in os.environ
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production' or 'RENDER' in os.environ or 'VERCEL' in os.environ
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=int(os.environ.get('SESSION_HOURS', '2')))
 
 # --- CSRF protection (all state-changing requests must carry the session token) ---
@@ -1575,6 +1581,14 @@ def delete_doctor(doctor_id):
                 img_path = os.path.normpath(os.path.join('static', doctor['image_path']))
                 if img_path.startswith(os.path.join('static', 'images', 'doctors')) and os.path.isfile(img_path):
                     os.remove(img_path)
+            except OSError:
+                pass
+            try:
+                # Vercel/ephemeral uploads live under UPLOAD_FOLDER (/tmp)
+                tmp_path = os.path.normpath(os.path.join(app.config['UPLOAD_FOLDER'],
+                                                          os.path.basename(doctor['image_path'])))
+                if os.path.isfile(tmp_path):
+                    os.remove(tmp_path)
             except OSError:
                 pass
 

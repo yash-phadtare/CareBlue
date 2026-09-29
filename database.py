@@ -13,7 +13,15 @@ def get_db_path():
     """Determine the appropriate database path for different environments."""
     # Use a path within the application's directory structure
     app_dir = os.path.dirname(os.path.abspath(__file__))
-    
+
+    # Vercel serverless: only /tmp is writable (ephemeral, per-instance).
+    # Data does not persist across cold starts — use a persistent DB
+    # (e.g. Vercel Postgres / Neon) for production data.
+    if 'VERCEL' in os.environ:
+        db_dir = os.path.join('/tmp', 'careblue-data')
+        os.makedirs(db_dir, exist_ok=True)
+        return os.path.join(db_dir, 'hospital.db')
+
     # Check if we're running on Render
     if 'RENDER' in os.environ:
         # Use a directory within the application's directory
@@ -275,6 +283,10 @@ def backup_database(keep=7):
     Keeps the newest `keep` snapshots, pruning older ones. Returns the
     snapshot path, or None when there is nothing to back up.
     """
+    if 'VERCEL' in os.environ:
+        # No persistent disk on Vercel serverless; skip file backups.
+        logger.info("Skipping file backup on Vercel (ephemeral filesystem)")
+        return None
     db_path = get_db_path()
     if not os.path.exists(db_path):
         return None
@@ -302,6 +314,8 @@ def backup_database(keep=7):
 
 def backup_database_if_stale(max_age_hours=24, keep=7):
     """Create a backup when the newest snapshot is older than max_age_hours."""
+    if 'VERCEL' in os.environ:
+        return None
     db_path = get_db_path()
     backup_dir = os.path.join(os.path.dirname(os.path.abspath(db_path)), 'backups')
     newest = 0
