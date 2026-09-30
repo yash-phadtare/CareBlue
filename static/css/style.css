@@ -249,6 +249,7 @@ a.md-card--interactive:hover { color: inherit; }
 .md-card-head h4 svg, .md-card-head h5 svg { color: var(--md-primary); width: 18px; height: 18px; }
 .md-card-head .md-hint { font-size: 0.75rem; color: var(--md-text-2); font-weight: 600; letter-spacing: 0.04em; }
 .md-card-body { padding: 20px; }
+.md-card--overflow-visible { overflow: visible; }
 .md-card-body--flush { padding: 0; }
 .md-section-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
 .md-section-head h6 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--md-text-2); font-weight: 600; }

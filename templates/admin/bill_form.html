@@ -7,7 +7,7 @@
     <div><p class="md-eyebrow">Raise invoice</p><h2 class="md-h2">New bill</h2><p class="md-sub">Pick a patient, optionally link a visit for its consultation fee, then add items.</p></div>
     <a href="{{ url_for('billing') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>All bills</a>
 </div></div>
-<div class="md-card" style="max-width:880px"><div class="md-card-body">
+<div class="md-card md-card--overflow-visible" style="max-width:880px"><div class="md-card-body">
     <form method="POST" action="{{ url_for('create_bill') }}" id="billForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="md-form-section"><h6><span class="md-sec-no">A</span>Bill for</h6>
@@ -16,7 +16,7 @@
                 <select id="patient_id" name="patient_id" required data-searchable>
                     <option value="">Select patient</option>
                     {% for p in patients %}<option value="{{ p.id }}" {% if preselect_patient == p.id|string %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
-                </select><p class="md-error-text">Choose a patient.</p></div>
+                </select><p class="md-error-text">Choose a patient.</p><p class="md-help">Choose who this bill is for.</p></div>
             <div class="md-field"><label for="appointment_id">Linked visit (optional)</label>
                 <select id="appointment_id" name="appointment_id" data-searchable>
                     <option value="">No linked visit</option>
@@ -50,11 +50,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const count = document.getElementById('item_count');
   const visitSel = document.getElementById('appointment_id');
   const patientSel = document.getElementById('patient_id');
-  // Keep visit choice consistent with the chosen patient
+  // Full visit list cached once; the dropdown only ever shows visits
+  // belonging to the chosen patient (plus "No linked visit").
+  const allVisits = [...visitSel.options].map((o) => ({ value: o.value, text: o.text, patient: o.dataset.patient || '' }));
+  const filterVisits = () => {
+    const pid = patientSel.value;
+    const current = visitSel.value;
+    visitSel.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = 'No linked visit';
+    visitSel.appendChild(none);
+    allVisits
+      .filter((v) => v.value && (!pid || v.patient === pid))
+      .forEach((v) => {
+        const o = document.createElement('option');
+        o.value = v.value;
+        o.textContent = v.text;
+        o.dataset.patient = v.patient;
+        visitSel.appendChild(o);
+      });
+    // Keep the selection only if it still belongs to the chosen patient
+    visitSel.value = [...visitSel.options].some((o) => o.value === current) ? current : '';
+  };
+  // Choosing a patient narrows the visit list; choosing a visit sets its patient
+  patientSel.addEventListener('change', filterVisits);
   visitSel.addEventListener('change', () => {
     const opt = visitSel.selectedOptions[0];
     if (opt && opt.dataset.patient) patientSel.value = opt.dataset.patient;
   });
+  filterVisits();
   const renumber = () => {
     box.querySelectorAll('.md-med').forEach((row, i) => {
       const n = i + 1;
