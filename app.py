@@ -42,6 +42,24 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production' or 'RENDER' in os.environ or 'VERCEL' in os.environ
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=int(os.environ.get('SESSION_HOURS', '2')))
 
+# Vercel may invoke the app with the rewritten destination path (/api/index...)
+# instead of the original URL (it detects the Flask instance in this file
+# directly, bypassing api/index.py). Restore the real path so routing and
+# static files work. No-op when the original path is passed through.
+_orig_wsgi_app = app.wsgi_app
+
+
+def _vercel_path_wsgi(environ, start_response):
+    _path = environ.get('PATH_INFO', '') or ''
+    if _path == '/api/index':
+        environ['PATH_INFO'] = '/'
+    elif _path.startswith('/api/index/'):
+        environ['PATH_INFO'] = _path[len('/api/index'):]
+    return _orig_wsgi_app(environ, start_response)
+
+
+app.wsgi_app = _vercel_path_wsgi
+
 # --- CSRF protection (all state-changing requests must carry the session token) ---
 def generate_csrf_token():
     if '_csrf_token' not in session:
