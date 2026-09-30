@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
-from database import get_db_path
+from CareBlue.database import get_db_path
 
 logger = logging.getLogger(__name__)
 DEMO_EMAIL = 'admin@hospital.com'

@@ -1,7 +1,7 @@
 import sqlite3
 import os
 import logging
-from database import get_db_path, get_db_connection
+from CareBlue.database import get_db_path, get_db_connection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
