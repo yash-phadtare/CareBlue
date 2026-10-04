@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Request could not be completed{% endblock %}
+{% block page_title %}Request could not be completed{% endblock %}
+{% block content %}
+<section class="md-card error-card"><div class="md-empty">
+    <span class="md-empty-icon" aria-hidden="true"><i data-lucide="shield-alert"></i></span>
+    <p class="md-error-code">Error {{ status }}</p>
+    <h1>{{ {400:'Check this request',401:'Sign in required',403:'Access restricted',404:'Page not found',405:'Action unavailable',409:'Record changed',422:'Review your entries',429:'Too many attempts',503:'Service unavailable'}.get(status, 'Request could not be completed') }}</h1>
+    <p role="alert">{{ message }}</p>
+    <a class="md-btn md-btn--filled" href="{{ url_for('auth.home') }}">Return home</a>
+</div></section>
+{% endblock %}

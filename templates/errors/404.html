@@ -2,12 +2,12 @@
 {% block title %}Page not found{% endblock %}
 {% block page_title %}Not found{% endblock %}
 {% block content %}
-<div class="md-card" style="max-width:560px;margin:2rem auto"><div class="md-empty" style="padding:4rem 1.5rem">
+<div class="md-card error-card"><div class="md-empty ">
     <div class="md-empty-icon"><i data-lucide="compass"></i></div>
-    <p class="md-caption" style="letter-spacing:0.1em">ERROR 404</p>
-    <h5 style="font-size:1.4rem">This page drifted away</h5>
+    <p class="md-caption tracking-wide">ERROR 404</p>
+    <h1 class="amount-large">Page not found</h1>
     <p>The link may be broken, or the record was removed. Head home or step back.</p>
-    {% if path %}<p class="md-caption" style="opacity:0.6">Requested path: {{ path }}</p>{% endif %}
-    <div class="md-cluster" style="justify-content:center"><a href="{{ url_for('home') }}" class="md-btn md-btn--filled">Go home</a><button class="md-btn md-btn--light" onclick="history.back()" type="button">Go back</button></div>
+    {% if path %}<p class="md-caption ">Requested path: {{ path }}</p>{% endif %}
+    <div class="md-cluster justify-center"><a href="{{ url_for('auth.home') }}" class="md-btn md-btn--filled">Go home</a><button class="md-btn md-btn--light" data-action="back" type="button">Go back</button></div>
 </div></div>
 {% endblock %}

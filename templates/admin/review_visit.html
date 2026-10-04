@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Visit #{{ visit.id }}{% endblock %}
+{% block page_title %}Review visit{% endblock %}
+{% block crumbs %}care · visit #{{ visit.id }}{% endblock %}
+{% block content %}
+<div class="md-page-head md-split">
+    <div><h1 class="md-h2">{{ visit.patient_name }}</h1><p class="md-sub">Patient #{{ visit.patient_id }} · Visit #{{ visit.id }}{% if visit.contact %} · {{ visit.contact }}{% endif %}</p></div>
+    <a href="{{ back_url('admin.view_appointments') }}" class="md-btn md-btn--outlined">Back to visits</a>
+</div>
+{% if error %}<div class="md-error-summary" role="alert"><strong>Visit not changed</strong><p>{{ error }}</p><a href="{{ context_link('admin.review_visit',appointment_id=visit.id) }}">Reload visit details</a></div>{% endif %}
+<div class="md-visit-workspace">
+    <section class="md-card" aria-labelledby="visitDetailsTitle">
+        <div class="md-card-head"><h2 id="visitDetailsTitle">Visit details</h2><span class="md-badge md-badge--{{ 'done' if visit.status=='Completed' else 'cancel' if visit.status=='Cancelled' else 'sched' }}">{{ visit.status }}</span></div>
+        <div class="md-card-body md-stack">
+            <dl class="md-visit-details"><div><dt>Doctor</dt><dd>Dr. {{ visit.doctor_name }}</dd></div><div><dt>When</dt><dd>{{ visit.date|date_display }} · {{ visit.time_slot|time_display }}</dd></div></dl>
+            {% if visit.notes %}<div><h3 class="md-section-title">Visit note</h3><p class="md-visit-note">{{ visit.notes }}</p></div>{% endif %}
+            <p class="md-help m-0">The assigned doctor reviews the consultation and records clinical completion.</p>
+            <div class="md-cluster">
+                {% if can('billing') %}<a href="{{ context_link('admin.bill_detail',bill_id=bill.id) if bill else context_link('admin.new_bill',appointment_id=visit.id) }}" class="md-btn md-btn--outlined">{{ 'Open bill' if bill else 'Create bill' }}</a>{% endif %}
+                {% if visit.status != 'Scheduled' %}<a href="{{ context_link('admin.schedule_appointment',patient_id=visit.patient_id,doctor_id=visit.doctor_id) }}" class="md-btn md-btn--filled">Add another visit</a>{% endif %}
+            </div>
+        </div>
+    </section>
+    <section class="md-card" aria-labelledby="visitChangeTitle">
+        <div class="md-card-head"><h2 id="visitChangeTitle">Manage this visit</h2></div>
+        <div class="md-card-body md-stack">
+        {% if visit.status != 'Scheduled' %}
+            <p class="m-0">This visit is {{ visit.status|lower }}. Its record is retained; add another visit for a new appointment.</p>
+        {% elif prescription or bill %}
+            <p class="m-0">This visit has {{ 'a prescription and a bill' if prescription and bill else 'a prescription' if prescription else 'a bill' }}. Its schedule is protected.</p>
+            <p class="md-help m-0">Ask Dr. {{ visit.doctor_name }}{% if bill %} and the billing team{% endif %} to review the existing record. Clinical completion is recorded from the doctor’s visit list.</p>
+        {% else %}
+            <p class="md-help m-0">Reschedule or cancel with a reason. The visit and the reason remain in the hospital’s audit history.</p>
+            <details class="md-expansion" {% if request.form.get('action')=='reschedule' %}open{% endif %}>
+                <summary>Reschedule visit</summary>
+                <div class="md-expansion-body"><form method="POST" action="{{ context_link('admin.review_visit',appointment_id=visit.id) }}" class="md-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="revision" value="{{ revision }}"><input type="hidden" name="action" value="reschedule">
+                    <div class="md-grid-2"><div class="md-field"><label for="visitDate">New date</label><input id="visitDate" name="date" type="date" min="{{ min_date }}" value="{{ request.form.get('date',visit.date if visit.date >= min_date else min_date) }}" required></div><div class="md-field"><label for="visitTime">Time (optional)</label><input id="visitTime" name="time_slot" type="time" value="{{ request.form.get('time_slot',visit.time_slot or '') }}"><p class="md-help">Leave empty for an untimed visit on this date.</p></div></div>
+                    <div class="md-field"><label for="rescheduleReason">Reason for rescheduling</label><textarea id="rescheduleReason" name="reason" rows="2" maxlength="1000" required>{{ request.form.get('reason','') if request.form.get('action')=='reschedule' else '' }}</textarea></div>
+                    <div class="md-form-actions"><button type="submit" class="md-btn md-btn--filled">Save new date and time</button></div>
+                </form></div>
+            </details>
+            <details class="md-expansion" {% if request.form.get('action')=='cancel' %}open{% endif %}>
+                <summary>Cancel visit</summary>
+                <div class="md-expansion-body"><form method="POST" action="{{ context_link('admin.review_visit',appointment_id=visit.id) }}" class="md-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="revision" value="{{ revision }}"><input type="hidden" name="action" value="cancel">
+                    <p class="md-help m-0">Cancel this booking without deleting its record. A cancelled visit cannot be reopened.</p>
+                    <div class="md-field"><label for="cancelReason">Reason for cancellation</label><textarea id="cancelReason" name="reason" rows="2" maxlength="1000" required>{{ request.form.get('reason','') if request.form.get('action')=='cancel' else '' }}</textarea></div>
+                    <div class="md-form-actions"><button type="submit" class="md-btn md-btn--outlined">Confirm cancellation</button></div>
+                </form></div>
+            </details>
+        {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

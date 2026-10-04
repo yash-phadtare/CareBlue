@@ -2,12 +2,12 @@
 {% block title %}Something went wrong{% endblock %}
 {% block page_title %}Error{% endblock %}
 {% block content %}
-<div class="md-card" style="max-width:560px;margin:2rem auto"><div class="md-empty" style="padding:4rem 1.5rem">
+<div class="md-card error-card"><div class="md-empty ">
     <div class="md-empty-icon"><i data-lucide="triangle-alert"></i></div>
-    <p class="md-caption" style="letter-spacing:0.1em">ERROR 500</p>
-    <h5 style="font-size:1.4rem">A hiccup on our side</h5>
+    <p class="md-caption tracking-wide">ERROR 500</p>
+    <h1 class="amount-large">We couldn’t complete this request</h1>
     <p>Please retry the action. If it persists, contact your administrator with the reference below.</p>
-    {% if request_id %}<p><span class="md-badge md-badge--neutral md-mono-nums">REF {{ request_id }}</span></p>{% endif %}
-    <div class="md-cluster" style="justify-content:center"><a href="{{ url_for('home') }}" class="md-btn md-btn--filled">Go home</a><button class="md-btn md-btn--light" onclick="location.reload()" type="button">Retry</button></div>
+    {% if request_id %}<p><span class="md-badge md-badge--neutral md-mono-nums md-error-ref">REF {{ request_id }}</span></p>{% endif %}
+    <div class="md-cluster justify-center"><a href="{{ url_for('auth.home') }}" class="md-btn md-btn--filled">Go home</a><button class="md-btn md-btn--light" data-action="reload" type="button">Retry</button></div>
 </div></div>
 {% endblock %}

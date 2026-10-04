@@ -1,30 +1,34 @@
 {% extends "base.html" %}
+{% from 'components/pagination.html' import clear_filters with context %}
 {% block title %}Audit log{% endblock %}
 {% block page_title %}Audit log{% endblock %}
 {% block crumbs %}system · audit{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">System · who did what</p><h2 class="md-h2">Audit log <span class="md-count-tag">· latest {{ entries|length }}</span></h2><p class="md-sub">Logins, records, schedules, status changes and deletions.</p></div>
-    <form method="POST" action="{{ url_for('admin_backup') }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--outlined" type="submit"><i data-lucide="database-backup"></i>Back up now</button></form>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><h1 class="md-h2">Audit log <span class="md-count-tag">· {{ pagers[0].total if pagers else entries|length }} events</span></h1><p class="md-sub">Logins, records, schedules, status changes and deletions.</p></div>
+    <form class="m-0" method="POST" action="{{ url_for('auth.admin_backup') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--outlined" type="submit"><i data-lucide="database-backup"></i>Back up now</button></form>
 </div></div>
-<div class="md-card"><div class="md-card-body">
-    <form class="md-toolbar" method="GET" action="{{ url_for('audit_log_view') }}" role="search">
-        <div class="md-field" style="max-width:220px"><label for="action">Action</label><select id="action" name="action"><option value="">All actions</option>{% for a in actions %}<option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></div>
-        <div class="md-field" style="max-width:220px"><label for="entity">Record type</label><select id="entity" name="entity"><option value="">All types</option>{% for e in entities %}<option value="{{ e }}" {% if entity_filter == e %}selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+<div class="md-card md-collection md-collection--audit"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('admin.audit_log_view') }}" role="search">
+        {{ search_state() }}
+        <div class="md-field field-narrow-md"><label for="action">Action</label><select id="action" name="action"><option value="">All actions</option>{% for a in actions %}<option value="{{ a }}" {% if action_filter == a %}selected{% endif %}>{{ a|replace('_',' ')|capitalize }}</option>{% endfor %}</select></div>
+        <div class="md-field field-narrow-md"><label for="entity">Record type</label><select id="entity" name="entity"><option value="">All types</option>{% for e in entities %}<option value="{{ e }}" {% if entity_filter == e %}selected{% endif %}>{{ e|replace('_',' ')|capitalize }}</option>{% endfor %}</select></div>
         <button class="md-btn md-btn--filled" type="submit">Apply</button>
-        {% if action_filter or entity_filter %}<a href="{{ url_for('audit_log_view') }}" class="md-btn md-btn--light">Reset</a>{% endif %}
+        {% if action_filter or entity_filter %}{{ clear_filters(['action', 'entity'],'Reset filters') }}{% endif %}
     </form>
-    {% if entries %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="15"><caption class="md-sr-only">Audit log</caption>
-        <thead><tr><th scope="col">#</th><th scope="col">When</th><th scope="col">Actor</th><th scope="col">Action</th><th scope="col">Record</th><th scope="col">Detail</th></tr></thead>
+    {{ sort_controls() }}
+    {% if pagers %}{{ pager_controls(pagers[0], 'Events',position='top') }}{% endif %}
+{% if entries %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards data-page-size="15"><caption class="md-sr-only">Audit log</caption>
+        <thead><tr><th scope="col"{% if request.args.get('sort')=='id' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('id','Event') }}</th><th scope="col"{% if request.args.get('sort')=='created_at' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('created_at','When') }}</th><th scope="col">Actor</th><th scope="col"{% if request.args.get('sort')=='action' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('action','Action') }}</th><th scope="col">Record</th><th scope="col">Detail</th></tr></thead>
         <tbody>{% for e in entries %}<tr>
             <td class="md-row-no">{{ e.id }}</td>
-            <td class="md-mono-nums" style="white-space:nowrap">{{ e.created_at }}</td>
+            <td class="md-mono-nums">{{ e.created_at|datetime_display }}</td>
             <td>{{ e.actor_name or '—' }} <span class="md-caption">({{ e.actor_type or 'system' }})</span></td>
-            <td><span class="md-badge md-badge--neutral"><i data-lucide="activity" aria-hidden="true"></i>{{ e.action }}</span></td>
+            <td><span class="md-badge md-badge--neutral"><i data-lucide="activity" aria-hidden="true"></i>{{ e.action|replace('_',' ')|capitalize }}</span></td>
             <td>{{ e.entity }}{% if e.entity_id %} <span class="md-caption md-mono-nums">#{{ e.entity_id }}</span>{% endif %}</td>
-            <td style="color:var(--md-on-surface-variant)">{{ e.detail or '—' }}</td>
+            <td class="text-muted">{% if e.detail and e.detail|length>180 %}<details class="md-audit-detail"><summary aria-label="Show full details for event {{ e.id }}">{{ e.detail[:120] }}… <span class="md-audit-expand">Full details</span></summary><p>{{ e.detail }}</p></details>{% else %}{{ e.detail or '—' }}{% endif %}</td>
         </tr>{% endfor %}</tbody>
     </table></div></div>
-    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="scroll-text"></i></div><h5>No audit entries</h5><p>{% if action_filter or entity_filter %}Try clearing the filters.{% else %}Actions will appear here as staff use the system.{% endif %}</p></div>{% endif %}
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="scroll-text"></i></div><h2>No audit entries</h2><p>{% if action_filter or entity_filter %}Try clearing the filters.{% else %}Actions will appear here as staff use the system.{% endif %}</p></div>{% endif %}
 </div></div>
 {% endblock %}

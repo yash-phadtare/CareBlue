@@ -1,13 +1,18 @@
 import sqlite3
 import os
 import logging
-from CareBlue.database import get_db_path, get_db_connection
+try:
+    # Package-style imports used by deployed environments.
+    from CareBlue.database import get_db_path, get_db_connection
+except ModuleNotFoundError:
+    # Direct local execution from the repository root.
+    from database import get_db_path, get_db_connection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def migrate_database():
+def migrate_database(conn=None):
     """Migrate the database to add hospital_id to prescriptions table."""
     db_path = get_db_path()
     
@@ -17,10 +22,13 @@ def migrate_database():
     
     logger.info(f"Starting database migration at: {db_path}")
     
-    conn = get_db_connection()
+    own = conn is None
+    conn = conn or get_db_connection()
     cursor = conn.cursor()
     
     try:
+        if own:
+            conn.execute("BEGIN IMMEDIATE")
         # Check if hospital_id column exists in prescriptions table
         cursor.execute("PRAGMA table_info(prescriptions)")
         columns = [column[1] for column in cursor.fetchall()]
@@ -45,9 +53,10 @@ def migrate_database():
             
             # Copy data from the old table to the new one
             cursor.execute('''
-                INSERT INTO prescriptions_new (id, appointment_id, diagnosis, medicines, instructions, created_at)
-                SELECT id, appointment_id, diagnosis, medicines, instructions, created_at
-                FROM prescriptions
+                INSERT INTO prescriptions_new (id, appointment_id, diagnosis, medicines, instructions, created_at, hospital_id)
+                SELECT p.id, p.appointment_id, p.diagnosis, p.medicines, p.instructions, p.created_at,
+                       (SELECT a.hospital_id FROM appointments a WHERE a.id = p.appointment_id)
+                FROM prescriptions p
             ''')
             
             # Update hospital_id based on the appointment
@@ -66,7 +75,6 @@ def migrate_database():
             # Rename the new table to the original name
             cursor.execute('ALTER TABLE prescriptions_new RENAME TO prescriptions')
             
-            conn.commit()
             logger.info("Migration completed successfully")
         else:
             logger.info("hospital_id column already exists in prescriptions table")
@@ -81,14 +89,14 @@ def migrate_database():
         except sqlite3.IntegrityError:
             # Pre-existing double bookings: leave the index off and rely on
             # the application-level guard; log loudly so data gets cleaned.
-            logger.error("Duplicate active slots exist — skipping unique slot index. Clean up duplicates.")
+            raise RuntimeError("Duplicate active slots must be resolved before migration.")
         try:
             cursor.execute('''
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_doctor_slots_day
                 ON doctor_slots (doctor_id, day_of_week)
             ''')
         except sqlite3.IntegrityError:
-            logger.error("Duplicate doctor day-slots exist — skipping unique day index. Clean up duplicates.")
+            raise RuntimeError("Duplicate doctor day-slots must be resolved before migration.")
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS audit_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -199,14 +207,21 @@ def migrate_database():
         ]:
             cursor.execute(ddl)
             logger.info(f"Ensured index {name}")
-        conn.commit()
+        if own:
+            conn.commit()
     
     except Exception as e:
-        conn.rollback()
+        if own:
+            conn.rollback()
         logger.error(f"Migration error: {e}")
         raise
     finally:
-        conn.close()
+        cursor.close()
+        if own:
+            conn.close()
 
 if __name__ == '__main__':
-    migrate_database() 
+    from careblue import create_app
+    from careblue.migrations import migrate
+    with create_app().app_context():
+        migrate()

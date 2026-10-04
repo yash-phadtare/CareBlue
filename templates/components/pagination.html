@@ -1,0 +1,56 @@
+{% macro search_state() %}
+{% if request.args.get('period') in ['today','upcoming','past'] %}<input type="hidden" name="period" value="{{ request.args.get('period') }}">{% endif %}
+{% if request.args.get('sort') in sort_options %}<input type="hidden" name="sort" value="{{ request.args.get('sort') }}"><input type="hidden" name="direction" value="{{ 'desc' if request.args.get('direction') == 'desc' else 'asc' }}">{% endif %}
+{% endmacro %}
+{% macro clear_filters(keys,label='Clear') %}
+{% set args={} %}{% for key,current in request.args.items() %}{% if key not in keys and key not in ['page','doctor_page'] %}{% set _=args.update({key:current}) %}{% endif %}{% endfor %}
+<a href="{{ url_for(request.endpoint,**args) }}" class="md-btn md-btn--light">{{ label }}</a>
+{% endmacro %}
+{% macro sort_heading(field,label) %}
+{% if field in sort_options %}
+{% set selected=request.args.get('sort')==field %}
+{% set next_direction='asc' if selected and request.args.get('direction')=='desc' else ('desc' if selected else 'asc') %}
+{% set args={} %}{% for key,current in request.args.items() %}{% if key not in ['sort','direction','page'] %}{% set _=args.update({key:current}) %}{% endif %}{% endfor %}{% set _=args.update({'sort':field,'direction':next_direction}) %}
+<a class="md-column-sort{% if selected %} is-sorted{% endif %}" href="{{ url_for(request.endpoint,**args) }}" aria-label="Sort {{ label|lower }} {{ 'descending' if next_direction=='desc' else 'ascending' }}">{{ label }}<i data-lucide="{{ 'arrow-down' if selected and request.args.get('direction')=='desc' else ('arrow-up' if selected else 'arrow-down-up') }}" aria-hidden="true"></i></a>
+{% else %}{{ label }}{% endif %}
+{% endmacro %}
+{% macro filter_tabs(items,key,selected,label) %}
+<nav class="md-chip-row md-filter-tabs no-print" aria-label="{{ label }}">
+{% for value,text in items %}
+{% set args={} %}{% for name,current in request.args.items() %}{% if name not in [key,'page'] %}{% set _=args.update({name:current}) %}{% endif %}{% endfor %}{% if value %}{% set _=args.update({key:value}) %}{% endif %}
+<a class="md-chip{% if selected==value %} on{% endif %}" href="{{ url_for(request.endpoint,**args) }}"{% if selected==value %} aria-current="true"{% endif %}>{% if selected==value %}<i data-lucide="check" aria-hidden="true"></i>{% endif %}{{ text }}</a>
+{% endfor %}</nav>
+{% endmacro %}
+{% macro period_controls() %}
+<nav class="md-chip-row md-period-controls no-print" aria-label="Visit date scope">
+{% set selected=request.args.get('period','all') %}
+{% for value,label in [('all','All visits'),('today','Today'),('upcoming','Upcoming'),('past','Past visits')] %}
+{% set args={} %}{% for key,current in request.args.items() %}{% if key not in ['period','page'] %}{% set _=args.update({key:current}) %}{% endif %}{% endfor %}{% if value!='all' %}{% set _=args.update({'period':value}) %}{% endif %}
+<a class="md-chip{% if selected==value or (value=='all' and selected not in ['today','upcoming','past']) %} on{% endif %}" href="{{ url_for(request.endpoint,**args) }}" {% if selected==value or (value=='all' and selected not in ['today','upcoming','past']) %}aria-current="true"{% endif %}>{% if selected==value or (value=='all' and selected not in ['today','upcoming','past']) %}<i data-lucide="check" aria-hidden="true"></i>{% endif %}{{ label }}</a>
+{% endfor %}</nav>
+{% endmacro %}
+{% macro sort_controls() %}
+{% if sort_options and pagers and pagers[0].total > 1 %}
+<details class="md-sort-details no-print">
+<summary><i data-lucide="arrow-down-up" aria-hidden="true"></i><span>Sort{% if request.args.get('sort') in sort_options %}: {{ sort_options[request.args.get('sort')] }} · {{ 'Descending' if request.args.get('direction') == 'desc' else 'Ascending' }}{% endif %}</span><i data-lucide="chevron-down" class="md-sort-chevron" aria-hidden="true"></i></summary>
+<form method="get" class="md-toolbar md-sort-toolbar" aria-label="Sort results">
+{% for key, value in request.args.items() %}{% if key not in ['page','sort','direction'] %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+<div class="md-field"><label for="result-sort">Sort by</label><select id="result-sort" name="sort">{% for field, label in sort_options.items() %}<option value="{{ field }}" {% if request.args.get('sort') == field %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="md-field"><label for="result-direction">Direction</label><select id="result-direction" name="direction"><option value="asc">Ascending</option><option value="desc" {% if request.args.get('direction') == 'desc' %}selected{% endif %}>Descending</option></select></div><button class="md-btn md-btn--outlined" type="submit">Apply sort</button></form>
+{% if request.args.get('sort') in sort_options %}
+{% set reset_args = {} %}{% for key,value in request.args.items() %}{% if key not in ['sort','direction','page'] %}{% set _ = reset_args.update({key:value}) %}{% endif %}{% endfor %}
+<a class="md-btn md-btn--text md-btn--sm" href="{{ url_for(request.endpoint, **reset_args) }}">Reset sorting</a>
+{% endif %}
+</details>{% endif %}
+{% endmacro %}
+{% macro pager_controls(pager, label='Results',position='bottom') %}
+{% if pager.pages > 1 %}<nav class="md-pager{% if position=='top' %} md-pager--top{% endif %} no-print" aria-label="{{ label }} pages{{ ' above results' if position=='top' else '' }}">
+<span role="status">{{ pager.start }}–{{ pager.end }} of {{ pager.total }} {{ label|lower }} · Page {{ pager.page }} of {{ pager.pages }}</span>
+<div class="md-cluster">{% if pager.prev %}<a class="md-btn md-btn--outlined{% if position=='top' %} md-btn--sm{% endif %}" rel="prev" href="{{ pager.prev }}">Previous</a>{% endif %}{% if pager.next %}<a class="md-btn md-btn--outlined{% if position=='top' %} md-btn--sm{% endif %}" rel="next" href="{{ pager.next }}">Next</a>{% endif %}</div>
+</nav>{% endif %}
+{% endmacro %}
+{% if request.endpoint != 'tenant.team' %}
+{% for pager in pagers %}
+{{ pager_controls(pager) }}
+{% endfor %}
+{% endif %}

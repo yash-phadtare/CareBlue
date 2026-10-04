@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+instance/
+data/
+backups/
+static/images/doctors/
+*.log
+playwright-report/
+test-results/

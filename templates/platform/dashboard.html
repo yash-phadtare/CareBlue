@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% from 'components/pagination.html' import clear_filters with context %}
+{% block title %}Platform hospitals{% endblock %}
+{% block page_title %}Hospital workspaces{% endblock %}
+{% block crumbs %}platform · hospitals{% endblock %}
+{% block content %}
+<div class="md-page-head"><div><h1 class="md-h2">Hospital workspaces <span class="md-count-tag">· {{ pagers[0].total if pagers else hospitals|length }}{% if search %} matching{% endif %}</span></h1><p class="md-sub">Manage workspace subscriptions and availability.</p></div><div class="md-cluster" role="group" aria-label="All workspace status counts">{% if search %}<span class="md-caption">All workspaces:</span>{% endif %}{% for row in summary %}<span class="md-badge md-badge--neutral">{{ row.status|capitalize }} · {{ row.count }}</span>{% endfor %}</div></div>
+<div class="md-card md-collection md-collection--workspaces"><div class="md-card-body">
+    <form method="GET" class="md-toolbar" role="search" action="{{ url_for('platform.dashboard') }}">
+        {{ search_state() }}<div class="md-search-wrap"><div class="md-field"><label for="search">Find hospital</label><input type="search" id="search" name="search" value="{{ search }}" placeholder="Name or workspace address"></div><button class="md-btn md-btn--outlined" type="submit"><i data-lucide="search" aria-hidden="true"></i>Search</button>{% if search %}{{ clear_filters(['search'],'Clear') }}{% endif %}</div>
+    </form>
+    {% if pagers %}{{ pager_controls(pagers[0], 'Workspaces',position='top') }}{% endif %}
+{% if hospitals %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards>
+        <caption class="md-sr-only">Hospital workspaces: plan, availability and management</caption><thead><tr><th scope="col">Hospital</th><th scope="col">Workspace</th><th scope="col">Plan</th><th scope="col">Status</th><th scope="col" class="text-right">Actions</th></tr></thead>
+        <tbody>{% for item in hospitals %}<tr><td class="no-label"><strong>{{ item.name }}</strong></td><td class="md-workspace-address">{{ item.slug }}</td><td>{{ item.plan|capitalize }}</td><td><span class="md-badge {{ 'md-badge--done' if item.status == 'Active' else ('md-badge--warn' if item.status == 'Trial' else 'md-badge--danger') }}"><i data-lucide="{{ 'check' if item.status=='Active' else ('clock' if item.status=='Trial' else 'pause') }}" aria-hidden="true"></i>{{ item.status|capitalize }}</span></td><td class="text-right"><a class="md-btn md-btn--outlined md-btn--sm" href="{{ context_link('platform.hospital_detail',hospital_id=item.id) }}" aria-label="Manage {{ item.name }} workspace">Manage<i data-lucide="arrow-up-right" aria-hidden="true"></i></a></td></tr>{% endfor %}</tbody>
+    </table></div></div>
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="building-2" aria-hidden="true"></i></div><h2>No workspaces found</h2><p>{% if search %}Try a different hospital name or workspace address, or clear the search.{% else %}Registered hospitals will appear here.{% endif %}</p></div>{% endif %}
+</div></div>
+{% endblock %}

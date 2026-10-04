@@ -1,0 +1,6 @@
+{% macro nav_link(endpoint, label, icon, related=[]) %}
+{% set active = request.endpoint == endpoint or request.endpoint in related %}
+<a class="md-nav-link{% if active %} active{% endif %}" href="{{ url_for(endpoint) }}" aria-label="{{ label }}" data-label="{{ label }}"{% if active %} aria-current="{{ 'page' if request.endpoint == endpoint else 'location' }}"{% endif %}>
+    <i data-lucide="{{ icon }}" aria-hidden="true"></i><span class="md-nav-text">{{ label }}</span>
+</a>
+{% endmacro %}

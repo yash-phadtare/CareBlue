@@ -1,72 +1,44 @@
-{% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}Today{% endblock %}
-{% block crumbs %}today{% endblock %}
-
+{% extends 'base.html' %}
+{% block title %}Today’s work{% endblock %}
+{% block page_title %}Today’s work{% endblock %}
+{% block crumbs %}daily work{% endblock %}
 {% block content %}
-{% set open = todays_appointments|selectattr('status', 'equalto', 'Scheduled')|list|length %}
-{% set total_today = todays_appointments|length %}
-{% set serving = (todays_appointments|selectattr('status', 'equalto', 'Scheduled')|list|first) %}
 <div class="day-head">
-    <div>
-        <p class="md-kicker">{{ now().strftime('%A') }}, {{ now().day }} {{ now().strftime('%B') }}</p>
-        <h2 class="day-title">{{ total_today }} visit{{ 's' if total_today != 1 }} today{% if open %} · {{ open }} waiting{% endif %}</h2>
-    </div>
-    <div class="md-cluster">
-        <a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--filled md-btn--sm"><i data-lucide="calendar-plus"></i>Schedule a visit</a>
-        <a href="{{ url_for('add_patient') }}" class="md-btn md-btn--outlined md-btn--sm"><i data-lucide="user-plus"></i>Add patient</a>
-    </div>
+    <div><h1 class="day-title">Today’s work</h1><p class="md-sub">{{ now().strftime('%A, %d %B') }} · Open a visit to review its details and next steps.</p></div>
+    <div class="md-cluster"><a href="{{ context_link('admin.schedule_appointment') }}" class="md-btn md-btn--filled"><i data-lucide="calendar-plus" aria-hidden="true"></i>Add visit</a><a href="{{ context_link('admin.add_patient') }}" class="md-btn md-btn--outlined">Add patient</a></div>
 </div>
-
-<div class="md-card mb-1" aria-label="Today's visits">
-    <div class="md-card-head"><h5>Today's queue</h5><span class="md-hint">{{ today }}</span></div>
-    <div class="md-card-body">
-        {% if todays_appointments %}
-        <div class="tk-list" role="list" aria-label="Today's appointment queue">
-        {% for app in todays_appointments[:5] %}
-        <div class="tk-row" role="listitem">
-            <span class="tk-num" aria-hidden="true">{{ '%02d' % loop.index }}</span>
-            <div class="tk-main">
-                <div class="tk-name"><span>{{ app.patient_name }}</span>{% if serving and app.patient_name == serving.patient_name and app.time_slot == serving.time_slot %}<span class="tk-live"><i></i>Now serving</span>{% endif %}</div>
-                <div class="tk-sub">{{ app.time_slot }} · Dr. {{ app.doctor_name }}</div>
-            </div>
-            <span class="st {{ 'st--done' if app.status == 'Completed' else ('st--cancel' if app.status == 'Cancelled' else '') }}">{{ app.status }}</span>
+<div class="md-visit-dashboard">
+    <section class="md-card md-today-visits" aria-labelledby="todayVisitsTitle">
+        <div class="md-card-head"><h2 id="todayVisitsTitle">Today’s visits</h2><span class="md-caption">{{ todays_appointments|length }} total</span></div>
+        <div class="md-card-body">
+            <nav class="md-cluster md-visit-filters" aria-label="Visit status">
+                {% for value,label,count in [('Scheduled','Scheduled',counts.Scheduled),('Completed','Completed',counts.Completed),('Cancelled','Cancelled',counts.Cancelled),('all','All',todays_appointments|length)] %}
+                <a class="md-btn md-btn--sm {{ 'md-btn--tonal' if schedule_status==value else 'md-btn--text' }}" href="{{ url_for('admin.admin_dashboard',schedule=value) }}"{% if schedule_status==value %} aria-current="page"{% endif %}>{{ label }} · {{ count }}</a>
+                {% endfor %}
+            </nav>
+            {% if schedule %}
+            <p class="md-caption">Showing {{ schedule|length }} of {{ schedule_total }} {{ 'visits' if schedule_status=='all' else schedule_status|lower + ' visits' }} · Untimed visits first, then appointment time.</p>
+            <ul class="md-visit-list">
+                {% for visit in schedule %}
+                <li><div class="md-visit-row-identity"><strong>{{ visit.patient_name }}</strong><span class="md-caption">Patient #{{ visit.patient_id }} · Visit #{{ visit.id }}</span><span class="md-visit-when">{{ visit.time_slot|time_display }} · Dr. {{ visit.doctor_name }}</span></div><div class="md-visit-row-actions"><span class="md-badge md-badge--{{ 'done' if visit.status=='Completed' else 'cancel' if visit.status=='Cancelled' else 'sched' }}">{{ visit.status }}</span><a href="{{ context_link('admin.review_visit',appointment_id=visit.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Open visit #{{ visit.id }} for {{ visit.patient_name }}">Open visit<i data-lucide="arrow-right" aria-hidden="true"></i></a></div></li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="md-empty empty-compact"><h3>No {{ schedule_status|lower + ' ' if schedule_status!='all' else '' }}visits today</h3><p>{{ 'Add a walk-in or choose a time for the next visit.' if schedule_status in ['all','Scheduled'] else 'Choose another status to view today’s other visits.' }}</p></div>
+            {% endif %}
+            <div class="md-queue-foot"><a href="{{ url_for('admin.view_appointments',period='today',status='' if schedule_status=='all' else schedule_status) }}" class="md-btn md-btn--text">View all {{ schedule_total }} {{ 'visits' if schedule_status=='all' else schedule_status|lower + ' visits' }}<i data-lucide="arrow-right" aria-hidden="true"></i></a></div>
         </div>
-        {% endfor %}
-        </div>
-        {% else %}
-        <p style="margin:0">Nothing booked today — the queue is clear.</p>
-        {% endif %}
-        <div class="md-queue-foot">
-            <a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--tonal md-btn--sm"><i data-lucide="plus"></i>Book a visit</a>
-            <a href="{{ url_for('view_appointments') }}" class="md-btn md-btn--text md-btn--sm">Open full register<i data-lucide="arrow-right"></i></a>
-        </div>
-    </div>
-</div>
-
-<div class="ledger" aria-label="Registry figures">
-    <a class="ledger-cell" href="{{ url_for('view_doctors') }}"><span class="ledger-num">{{ doctors_count }}</span><span class="ledger-cap">Doctors on roster · <b>Open</b></span></a>
-    <a class="ledger-cell" href="{{ url_for('view_patients') }}"><span class="ledger-num">{{ patients_count }}</span><span class="ledger-cap">Patients on record · <b>Open</b></span></a>
-    <a class="ledger-cell" href="{{ url_for('view_appointments') }}"><span class="ledger-num">{{ appointments_count }}</span><span class="ledger-cap">Visits total · <b>{{ total_today }} today</b></span></a>
-</div>
-
-<div class="md-card">
-    <div class="md-card-head"><h5>Recent visits</h5><a href="{{ url_for('view_appointments') }}" class="md-btn md-btn--text md-btn--sm">Full register</a></div>
-    <div class="md-card-body--flush md-card-body">
-        {% if recent_appointments %}
-        <div class="md-table-scroll"><table class="md-table"><caption class="md-sr-only">Recent visits</caption>
-            <thead><tr><th scope="col">#</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">When</th><th scope="col">Status</th></tr></thead>
-            <tbody>{% for app in recent_appointments %}<tr>
-                <td class="md-row-no">{{ '%02d' % loop.index }}</td>
-                <td><span class="who">{{ app.patient_name }}</span></td>
-                <td>Dr. {{ app.doctor_name }}</td>
-                <td class="md-mono-nums">{{ app.date }} · {{ app.time_slot }}</td>
-                <td><span class="st {{ 'st--done' if app.status == 'Completed' else ('st--cancel' if app.status == 'Cancelled' else '') }}">{{ app.status }}</span></td>
-            </tr>{% endfor %}</tbody>
-        </table></div>
-        {% else %}
-        <div class="md-empty"><h5>No visits yet</h5><p>Schedule the first appointment to start the record.</p><a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--filled md-btn--sm">Schedule first visit</a></div>
-        {% endif %}
-    </div>
+    </section>
+    <aside class="md-visit-support" aria-label="Supporting work">
+        <section class="md-card" aria-labelledby="attentionTitle"><div class="md-card-head"><h2 id="attentionTitle">Needs attention</h2></div><div class="md-card-body md-stack">
+            {% if operations.overdue_visits %}<a class="md-attention-link" href="{{ url_for('admin.view_appointments',period='past',status='Scheduled') }}"><strong>{{ operations.overdue_visits }} past {{ 'visit needs' if operations.overdue_visits==1 else 'visits need' }} review</strong><span>Still scheduled · Open a visit to resolve or hand off.</span><span class="md-attention-action">Review past visits <i data-lucide="arrow-right" aria-hidden="true"></i></span></a>{% else %}<p class="md-help m-0">No past visits remain scheduled.</p>{% endif %}
+            {% if can('pharmacy') %}{% if operations.low_stock %}<a class="md-attention-link" href="{{ url_for('admin.pharmacy',low='1') }}"><strong>{{ operations.low_stock }} {{ 'medicine needs' if operations.low_stock==1 else 'medicines need' }} stock review</strong><span>At or below reorder level.</span><span class="md-attention-action">Review stock <i data-lucide="arrow-right" aria-hidden="true"></i></span></a>{% else %}<p class="md-help m-0">No medicines are at the reorder level.</p>{% endif %}{% endif %}
+        </div></section>
+        <section class="md-workspace-support" aria-labelledby="capacityTitle"><h2 id="capacityTitle">Capacity & resources</h2>
+            <p><strong>{{ beds.available }} beds available</strong><br><span class="md-help">{{ beds.occupied }} occupied of {{ beds.total }} active beds.</span></p>
+            <div class="md-cluster"><a href="{{ url_for('admin.beds') }}" class="md-btn md-btn--text md-btn--sm">Open beds</a>{% if can('doctors') %}<a href="{{ url_for('admin.view_doctors') }}" class="md-btn md-btn--text md-btn--sm">{{ doctors_count }} {{ 'doctor' if doctors_count==1 else 'doctors' }}</a>{% endif %}</div>
+            {% if can('billing') %}<div class="md-cluster"><a href="{{ context_link('admin.new_bill') }}" class="md-btn md-btn--text md-btn--sm">Create bill</a><a href="{{ url_for('admin.billing') }}" class="md-btn md-btn--text md-btn--sm">Open ledger</a></div>{% endif %}
+        </section>
+    </aside>
 </div>
 {% endblock %}

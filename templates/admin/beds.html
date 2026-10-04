@@ -3,9 +3,10 @@
 {% block page_title %}Beds &amp; wards{% endblock %}
 {% block crumbs %}operations · beds{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Operations · occupancy</p><h2 class="md-h2">Beds <span class="md-count-tag">· {{ counts.free }}/{{ counts.total }} free</span></h2><p class="md-sub">Assign patients, free beds, manage wards.</p></div>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><h1 class="md-h2">Beds <span class="md-count-tag">· {{ counts.free }}/{{ counts.total }} free</span></h1><p class="md-sub">Assign patients, free beds, manage wards.</p></div>
     <div class="md-cluster">
+        <a class="md-btn md-btn--text" href="{{ url_for('history.admissions') }}">Admission history</a>
         <button class="md-btn md-btn--outlined" data-md-open="addWardDlg"><i data-lucide="plus"></i>New ward</button>
         <button class="md-btn md-btn--filled" data-md-open="addBedDlg"><i data-lucide="bed-single"></i>New bed</button>
     </div>
@@ -20,7 +21,7 @@
 {% for group in ward_groups %}
 <div class="md-card">
     <div class="md-card-head">
-        <h5><i data-lucide="building-2"></i>{{ group.ward.name }}{% if group.ward.ward_type %} <span class="md-count-tag">· {{ group.ward.ward_type }}</span>{% endif %}</h5>
+        <h2><i data-lucide="building-2"></i>{{ group.ward.name }}{% if group.ward.ward_type %} <span class="md-count-tag">· {{ group.ward.ward_type }}</span>{% endif %}</h2>
         <span class="md-cluster">
             <span class="md-hint">{{ group.beds|length }} BED(S)</span>
             {% if not group.beds %}
@@ -36,34 +37,34 @@
                 <div class="md-split"><strong class="md-mono-nums">{{ bed.bed_number }}</strong>
                     <span class="md-badge md-badge--{{ 'done' if bed.status == 'Available' else ('sched' if bed.status == 'Occupied' else 'neutral') }}"><i data-lucide="{{ 'check' if bed.status == 'Available' else ('user' if bed.status == 'Occupied' else 'wrench') }}" aria-hidden="true"></i>{{ bed.status }}</span>
                 </div>
-                <p class="md-sub" style="margin:0.35rem 0 0.6rem;font-size:0.83rem">{{ bed.patient_name or '—' }}</p>
+                <p class="md-sub bed-patient">{{ bed.patient_name or '—' }}</p>
                 <div class="md-cluster">
                     {% if bed.status == 'Available' and not bed.patient_id %}
                     <button class="md-btn md-btn--filled md-btn--sm" data-md-open="assign{{ bed.id }}">Assign</button>
-                    <form method="POST" action="{{ url_for('maintenance_bed', bed_id=bed.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--outlined md-btn--sm" type="submit" title="Mark under maintenance">Maintain</button></form>
-                    <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="delBed{{ bed.id }}" title="Remove bed {{ bed.bed_number }}" aria-label="Remove bed {{ bed.bed_number }}"><i data-lucide="trash-2"></i></button>
+                    <form class="m-0" method="POST" action="{{ url_for('admin.maintenance_bed', bed_id=bed.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--outlined md-btn--sm" type="submit" title="Mark under maintenance">Maintenance</button></form>
+                    <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="delBed{{ bed.id }}" title="Archive bed {{ bed.bed_number }}" aria-label="Archive bed {{ bed.bed_number }}"><i data-lucide="trash-2"></i></button>
                     {% elif bed.status == 'Maintenance' %}
-                    <form method="POST" action="{{ url_for('maintenance_bed', bed_id=bed.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--outlined md-btn--sm" type="submit">Reopen</button></form>
-                    <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="delBed{{ bed.id }}" title="Remove bed {{ bed.bed_number }}" aria-label="Remove bed {{ bed.bed_number }}"><i data-lucide="trash-2"></i></button>
+                    <form class="m-0" method="POST" action="{{ url_for('admin.maintenance_bed', bed_id=bed.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--outlined md-btn--sm" type="submit">Reopen</button></form>
+                    <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="delBed{{ bed.id }}" title="Archive bed {{ bed.bed_number }}" aria-label="Archive bed {{ bed.bed_number }}"><i data-lucide="trash-2"></i></button>
                     {% else %}
-                    <form method="POST" action="{{ url_for('discharge_bed', bed_id=bed.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--tonal md-btn--sm" type="submit">Discharge</button></form>
+                    <form class="m-0" method="POST" action="{{ url_for('admin.discharge_bed', bed_id=bed.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--tonal md-btn--sm" type="submit">Discharge</button></form>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <div class="md-empty" style="padding:1.5rem"><p style="margin:0">No beds in this ward yet. Add a bed above to start assigning patients.</p></div>
+        <div class="md-empty empty-compact"><p class="m-0">No beds in this ward yet. Add a bed above to start assigning patients.</p></div>
         {% endif %}
     </div>
 </div>
 {% else %}
-<div class="md-card"><div class="md-empty"><div class="md-empty-icon"><i data-lucide="bed-single"></i></div><h5>No wards yet</h5><p>Create your first ward, then add beds to it.</p><button class="md-btn md-btn--filled md-btn--sm" data-md-open="addWardDlg">New ward</button></div></div>
+<div class="md-card"><div class="md-empty"><div class="md-empty-icon"><i data-lucide="bed-single"></i></div><h2>No wards yet</h2><p>Create your first ward, then add beds to it.</p><button class="md-btn md-btn--filled md-btn--sm" data-md-open="addWardDlg">New ward</button></div></div>
 {% endfor %}
 
 <div class="md-dialog-backdrop" data-md-dialog="addWardDlg" role="dialog" aria-modal="true" aria-label="New ward"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">New ward</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <form method="POST" action="{{ url_for('add_ward') }}">
+    <div class="md-dialog-head"><h2 class="md-dialog-title">New ward</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <form method="POST" action="{{ url_for('admin.add_ward') }}" class="md-form">
         <div class="md-dialog-body md-stack">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="md-field"><label for="ward_name">Ward name</label><input id="ward_name" name="name" required maxlength="80" placeholder="e.g. General Ward A"></div>
@@ -74,11 +75,11 @@
 </div></div>
 
 <div class="md-dialog-backdrop" data-md-dialog="addBedDlg" role="dialog" aria-modal="true" aria-label="New bed"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">New bed</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <form method="POST" action="{{ url_for('add_bed') }}">
+    <div class="md-dialog-head"><h2 class="md-dialog-title">New bed</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <form method="POST" action="{{ url_for('admin.add_bed') }}" class="md-form">
         <div class="md-dialog-body md-stack">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="md-field"><label for="bed_ward">Ward</label><select id="bed_ward" name="ward_id" required><option value="">Select ward</option>{% for group in ward_groups %}<option value="{{ group.ward.id }}">{{ group.ward.name }}</option>{% endfor %}</select></div>
+            <div class="md-field"><label for="bed_ward">Ward</label><select id="bed_ward" name="ward_id" required data-searchable data-search-placeholder="Find a ward"><option value="">Select ward</option>{% for group in ward_groups %}<option value="{{ group.ward.id }}">{{ group.ward.name }}</option>{% endfor %}</select></div>
             <div class="md-field"><label for="bed_number">Bed number</label><input id="bed_number" name="bed_number" required maxlength="20" placeholder="e.g. B-12"></div>
         </div>
         <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Cancel</button><button class="md-btn md-btn--filled" type="submit">Add bed</button></div>
@@ -88,25 +89,25 @@
 {% for group in ward_groups %}
 {% if not group.beds %}
 <div class="md-dialog-backdrop" data-md-dialog="delWard{{ group.ward.id }}" role="dialog" aria-modal="true" aria-label="Delete ward"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">Delete {{ group.ward.name }}?</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <div class="md-dialog-body"><p style="margin:0">Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
-    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ url_for('delete_ward', ward_id=group.ward.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Delete</button></form></div>
+    <div class="md-dialog-head"><h2 class="md-dialog-title">Delete {{ group.ward.name }}?</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-body"><p class="m-0">Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
+    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form class="m-0" method="POST" action="{{ url_for('admin.delete_ward', ward_id=group.ward.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Delete</button></form></div>
 </div></div>
 {% endif %}
 {% for bed in group.beds %}
 {% if bed.status != 'Occupied' %}
-<div class="md-dialog-backdrop" data-md-dialog="delBed{{ bed.id }}" role="dialog" aria-modal="true" aria-label="Remove bed"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">Remove bed {{ bed.bed_number }}?</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ url_for('delete_bed', bed_id=bed.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Remove</button></form></div>
+<div class="md-dialog-backdrop" data-md-dialog="delBed{{ bed.id }}" role="dialog" aria-modal="true" aria-label="Archive bed"><div class="md-dialog">
+    <div class="md-dialog-head"><h2 class="md-dialog-title">Archive bed {{ bed.bed_number }}?</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form class="m-0" method="POST" action="{{ url_for('admin.delete_bed', bed_id=bed.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Archive</button></form></div>
 </div></div>
 {% endif %}
 {% if bed.status == 'Available' and not bed.patient_id %}
 <div class="md-dialog-backdrop" data-md-dialog="assign{{ bed.id }}" role="dialog" aria-modal="true" aria-label="Assign bed"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">Assign bed {{ bed.bed_number }}</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <form method="POST" action="{{ url_for('assign_bed', bed_id=bed.id) }}">
+    <div class="md-dialog-head"><h2 class="md-dialog-title">Assign bed {{ bed.bed_number }}</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <form method="POST" action="{{ url_for('admin.assign_bed', bed_id=bed.id) }}" class="md-form">
         <div class="md-dialog-body">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="md-field"><label for="pat{{ bed.id }}">Patient</label><select id="pat{{ bed.id }}" name="patient_id" required><option value="">Select patient</option>{% for p in patients %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+            <div class="md-field"><label for="pat{{ bed.id }}">Patient</label><select id="pat{{ bed.id }}" name="patient_id" required data-searchable data-search-source="patients" data-search-placeholder="Name or phone number"><option value="">Select patient</option>{% for p in patients %}<option value="{{ p.id }}">{{ p.name }} · #{{ p.id }}</option>{% endfor %}</select></div>
         </div>
         <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Cancel</button><button class="md-btn md-btn--filled" type="submit">Assign</button></div>
     </form>

@@ -3,31 +3,29 @@
 {% block page_title %}Add doctor{% endblock %}
 {% block crumbs %}registry · doctors · new{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Onboard clinician</p><h2 class="md-h2">New doctor</h2><p class="md-sub">Profile first — login and hours come next.</p></div>
-    <a href="{{ url_for('view_doctors') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>All doctors</a>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><h1 class="md-h2">New doctor</h1><p class="md-sub">Add the profile and optional login together. Weekly hours are optional.</p></div>
+    <a href="{{ back_url('admin.view_doctors') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>{{ 'Back to results' if return_context else 'All doctors' }}</a>
 </div></div>
-<div class="md-steps" aria-label="Doctor setup steps"><span class="on">1 · Profile</span><i data-lucide="chevron-right"></i><span>2 · Access</span><i data-lucide="chevron-right"></i><span>3 · Hours</span></div>
-<div class="md-card" style="max-width:880px"><div class="md-card-body">
-    <form method="POST" action="{{ url_for('add_doctor') }}" enctype="multipart/form-data" novalidate>
+<div class="md-card form-width-wide"><div class="md-card-body">
+    <form method="POST" action="{{ context_link('admin.add_doctor') }}" enctype="multipart/form-data" novalidate class="md-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="md-form-section"><h6><span class="md-sec-no">A</span>Identity</h6>
-            <div class="md-grid-2" style="gap:0.9rem">
-                <div class="md-field"><label for="name">Full name</label><input id="name" name="name" required placeholder="Dr. Jane Smith" autocomplete="name"></div>
+        <div class="md-form-section"><h2 class="md-section-title"><span class="md-sec-no">A</span>Identity</h2>
+            <div class="md-grid-2 gap-4">
+                <div class="md-field"><label for="name">Full name</label><input id="name" name="name" required placeholder="Jane Smith" autocomplete="name"></div>
                 <div class="md-field"><label for="specialization">Specialization</label><input id="specialization" name="specialization" required placeholder="e.g. Cardiology" list="specList"><datalist id="specList"><option>General Medicine</option><option>Cardiology</option><option>Dermatology</option><option>Orthopedics</option><option>Pediatrics</option><option>Neurology</option></datalist></div>
             </div>
-            <div class="md-field" style="margin-top:0.9rem"><label for="bio">Bio</label><textarea id="bio" name="bio" rows="3" placeholder="Qualifications, languages, focus areas..."></textarea></div>
         </div>
-        <div class="md-form-section"><h6><span class="md-sec-no">B</span>Practice</h6>
-            <div class="md-grid-3" style="gap:0.9rem">
-                <div class="md-field"><label for="experience">Experience (years)</label><input type="number" id="experience" name="experience" min="0" max="60" placeholder="8"></div>
-                <div class="md-field"><label for="consultation_fee">Fee (₹)</label><input type="number" id="consultation_fee" name="consultation_fee" min="0" step="0.01" required placeholder="500"></div>
-                <div class="md-field"><label for="contact">Contact</label><input type="tel" id="contact" name="contact" required placeholder="+91 ..." autocomplete="tel"></div>
+        <div class="md-form-section"><h2 class="md-section-title"><span class="md-sec-no">B</span>Practice</h2>
+            <div class="md-grid-2 gap-4">
+                <div class="md-field"><label for="consultation_fee">Fee (₹, optional)</label><input type="number" id="consultation_fee" name="consultation_fee" min="0" step="0.01" placeholder="0"></div>
+                <div class="md-field"><label for="contact">Contact (optional)</label><input type="tel" id="contact" name="contact" placeholder="+91 ..." autocomplete="tel" maxlength="30"></div>
             </div>
-            <div class="md-field" style="margin-top:0.9rem"><label for="image">Profile photo</label><input type="file" id="image" name="image" accept=".png,.jpg,.jpeg" style="min-height:0;padding:0.7rem 0.9rem"><p class="md-help" style="font-size:0.75rem;color:var(--md-on-surface-variant);margin:0.3rem 0.75rem 0">Square JPG/PNG · shown on roster cards.</p></div>
         </div>
+        <details class="md-expansion"><summary>Profile details (optional)</summary><div class="md-expansion-body md-stack"><div class="md-grid-2"><div class="md-field"><label for="experience">Experience (years, optional)</label><input type="number" id="experience" name="experience" min="0" max="60" placeholder="If known"></div><div class="md-field"><label for="image">Profile photo</label><input type="file" id="image" name="image" accept=".png,.jpg,.jpeg"><p class="md-help">Square JPG or PNG.</p></div></div><div class="md-field"><label for="bio">Bio</label><textarea id="bio" name="bio" rows="2" placeholder="Qualifications, languages, focus areas..."></textarea></div></div></details>
+        <details class="md-expansion"><summary>Create sign-in access now (optional)</summary><div class="md-expansion-body md-grid-2"><div class="md-field"><label for="new_doctor_username">Username</label><input id="new_doctor_username" name="username" minlength="4" maxlength="80" pattern="[A-Za-z0-9_]+" autocomplete="off"></div><div class="md-field"><div class="md-split"><label for="new_doctor_password">Initial password</label><button type="button" data-generate-password="new_doctor_password" class="md-btn md-btn--text md-btn--sm">Generate</button></div><input id="new_doctor_password" name="password" type="password" minlength="12" maxlength="128" autocomplete="new-password"><p class="md-help">Share the initial password securely.</p></div></div></details>
         <div class="md-cluster md-cluster--end">
-            <a href="{{ url_for('view_doctors') }}" class="md-btn md-btn--light">Cancel</a>
+            <a href="{{ back_url('admin.view_doctors') }}" class="md-btn md-btn--light">Cancel</a>
             <button type="submit" class="md-btn md-btn--filled"><i data-lucide="check"></i>Save doctor</button>
         </div>
     </form>

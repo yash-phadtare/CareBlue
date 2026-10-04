@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Admission history{% endblock %}
+{% block page_title %}Admission history{% endblock %}
+{% block content %}
+<div class="md-page-head md-split"><div><h1 class="md-headline">Admissions and discharges <span class="md-count-tag">· {{ pagers[0].total if pagers else admissions|length }} recorded</span></h1><p class="md-sub">Review ward assignments and patient admission history.</p></div><a class="md-btn md-btn--outlined" href="{{ url_for('admin.beds') }}"><i data-lucide="bed-double" aria-hidden="true"></i>Beds and wards</a></div>
+<div class="md-card md-collection md-collection--admissions"><div class="md-card-body">
+{% if pagers %}{{ pager_controls(pagers[0], 'Admissions',position='top') }}{% endif %}
+{% if admissions %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards>
+<caption class="md-sr-only">Admission history</caption><thead><tr><th scope="col">Patient</th><th scope="col">Ward / bed</th><th scope="col">Admitted</th><th scope="col">Discharged</th></tr></thead>
+<tbody>{% for admission in admissions %}<tr><td class="no-label"><strong>{{ admission.patient_name }}</strong></td><td>{{ admission.ward_name }} / {{ admission.bed_number }}</td><td>{{ admission.admitted_at|datetime_display }}</td><td>{% if admission.discharged_at %}{{ admission.discharged_at|datetime_display }}{% else %}<span class="md-badge md-badge--sched"><i data-lucide="bed-double" aria-hidden="true"></i>Currently admitted</span>{% endif %}</td></tr>{% endfor %}</tbody></table></div></div>
+{% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="bed-double" aria-hidden="true"></i></div><h2>No admissions recorded</h2><p>Assigning a bed will create an admission record.</p></div>{% endif %}
+</div></div>
+{% endblock %}

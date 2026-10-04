@@ -1,30 +1,36 @@
-"""Idempotent demo dataset for the bundled demo hospital (admin@hospital.com).
-
-Only runs when that hospital has no doctors AND no patients, so real
-deployments are never touched. Safe to call on every startup.
-"""
+"""Explicit, local-only fictional demonstration data for an empty hospital."""
 import logging
-import sqlite3
 from datetime import datetime, timedelta
 
-from werkzeug.security import generate_password_hash
 
-from CareBlue.database import get_db_path
+try:
+    # Package-style imports used by deployed environments.
+    from CareBlue.database import get_db_path, get_db_connection
+except ModuleNotFoundError:
+    # Direct local execution from the repository root.
+    from database import get_db_path, get_db_connection
 
 logger = logging.getLogger(__name__)
 DEMO_EMAIL = 'admin@hospital.com'
 
 
-def ensure_demo_data():
+def ensure_demo_data(hospital_id=None, *, enabled=False):
+    from flask import current_app
+    if not enabled or current_app.config["PRODUCTION"] or current_app.config["DATABASE_URL"]:
+        raise RuntimeError("Demo seeding requires explicit local-development opt-in.")
     db_path = get_db_path()
-    conn = sqlite3.connect(db_path, timeout=20)
-    conn.row_factory = sqlite3.Row
+    conn = get_db_connection()
+    from careblue.services import to_minor
     try:
         conn.execute("PRAGMA foreign_keys = ON")
-        demo = conn.execute('SELECT id FROM staff WHERE email = ?', (DEMO_EMAIL,)).fetchone()
+        demo = conn.execute('SELECT id FROM hospitals WHERE id = ?', (hospital_id,)).fetchone()
         if not demo:
             return False
         hid = demo['id']
+        admin = conn.execute('SELECT id FROM staff WHERE hospital_id=? ORDER BY id LIMIT 1', (hid,)).fetchone()
+        if not admin:
+            return False
+        creator_id = admin['id']
         if conn.execute('SELECT COUNT(*) FROM doctors WHERE hospital_id = ?', (hid,)).fetchone()[0]:
             return False
         if conn.execute('SELECT COUNT(*) FROM patients WHERE hospital_id = ?', (hid,)).fetchone()[0]:
@@ -39,12 +45,12 @@ def ensure_demo_data():
         ]
         doc_ids = []
         for name, spec, exp, fee, contact, bio, username in doctors:
-            cur = conn.execute('''
-                INSERT INTO doctors (name, specialization, experience, consultation_fee,
+            cur = conn.insert('''
+                INSERT INTO doctors (name, specialization, experience, consultation_fee_cents,
                                      contact, bio, username, password, created_by, hospital_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (name, spec, exp, fee, contact, bio, username,
-                  generate_password_hash('doctor123') if username else None, hid, hid))
+            ''', (name, spec, exp, to_minor(fee), contact, bio, username,
+                  None, creator_id, hid))
             doc_ids.append(cur.lastrowid)
 
         # ---- Weekly hours: Mon–Fri 09:00–17:00 (lunch 13:00–14:00), Sat morning ----
@@ -71,10 +77,10 @@ def ensure_demo_data():
         ]
         pat_ids = []
         for name, age, gender, contact, address, history in patients:
-            cur = conn.execute('''
+            cur = conn.insert('''
                 INSERT INTO patients (name, age, gender, contact, address, medical_history, created_by, hospital_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (name, age, gender, contact, address, history, hid, hid))
+            ''', (name, age, gender, contact, address, history, creator_id, hid))
             pat_ids.append(cur.lastrowid)
 
         # ---- Appointments: past (completed), today + future (scheduled) ----
@@ -84,7 +90,7 @@ def ensure_demo_data():
         appt_ids = []
 
         def book(pid, did, day, slot, status, notes=''):
-            cur = conn.execute('''
+            cur = conn.insert('''
                 INSERT INTO appointments (patient_id, doctor_id, date, time_slot, status, notes, hospital_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (pid, did, day.isoformat(), slot, status, notes, hid))
@@ -120,7 +126,7 @@ def ensure_demo_data():
               'Avoid dust. Review inhaler technique.', hid))
 
         # ---- Ward + beds (one occupied) ----
-        wcur = conn.execute("INSERT INTO wards (name, ward_type, hospital_id) VALUES ('General Ward A', 'General', ?)",
+        wcur = conn.insert("INSERT INTO wards (name, ward_type, hospital_id) VALUES ('General Ward A', 'General', ?)",
                             (hid,))
         wid = wcur.lastrowid
         for n in ['B-1', 'B-2', 'B-3', 'B-4', 'B-5', 'B-6']:
@@ -138,24 +144,35 @@ def ensure_demo_data():
             ('Metformin', '500mg', 'strip of 20', 80, 25, 70.0),
         ]:
             conn.execute('''
-                INSERT INTO medicines (name, strength, unit, stock_qty, reorder_level, unit_price, hospital_id)
+                INSERT INTO medicines (name, strength, unit, stock_qty, reorder_level, unit_price_cents, hospital_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (name, strength, unit, stock, reorder, price, hid))
+            ''', (name, strength, unit, stock, reorder, to_minor(price), hid))
 
         # ---- Bills: one paid, one open ----
-        bcur = conn.execute('INSERT INTO bills (appointment_id, patient_id, hospital_id, notes) VALUES (?, ?, ?, ?)',
+        bcur = conn.insert('INSERT INTO bills (appointment_id, patient_id, hospital_id, notes) VALUES (?, ?, ?, ?)',
                             (a1, pat_ids[0], hid, 'Consultation + tests'))
         b1 = bcur.lastrowid
-        conn.execute('INSERT INTO bill_items (bill_id, label, amount) VALUES (?, ?, ?)',
+        conn.execute('INSERT INTO bill_items (bill_id, label, amount_cents) VALUES (?, ?, ?)',
                      (b1, 'Consultation — Dr. Meera Nair', 800.0))
-        conn.execute('INSERT INTO bill_items (bill_id, label, amount) VALUES (?, ?, ?)', (b1, 'ECG', 350.0))
-        conn.execute('INSERT INTO payments (bill_id, amount, method) VALUES (?, 1150.0, ?)', (b1, 'UPI'))
-        bcur = conn.execute('INSERT INTO bills (patient_id, hospital_id, notes) VALUES (?, ?, ?)',
+        conn.execute('INSERT INTO bill_items (bill_id, label, amount_cents) VALUES (?, ?, ?)', (b1, 'ECG', 35000))
+        conn.execute('INSERT INTO payments (bill_id, amount_cents, method) VALUES (?, 115000, ?)', (b1, 'UPI'))
+        bcur = conn.insert('INSERT INTO bills (patient_id, hospital_id, notes) VALUES (?, ?, ?)',
                             (pat_ids[1], hid, 'Vaccination'))
         b2 = bcur.lastrowid
-        conn.execute('INSERT INTO bill_items (bill_id, label, amount) VALUES (?, ?, ?)', (b2, 'Flu vaccine', 950.0))
-        conn.execute('INSERT INTO payments (bill_id, amount, method) VALUES (?, 400.0, ?)', (b2, 'Cash'))
+        conn.execute('INSERT INTO bill_items (bill_id, label, amount_cents) VALUES (?, ?, ?)', (b2, 'Flu vaccine', 95000))
+        conn.execute('INSERT INTO payments (bill_id, amount_cents, method) VALUES (?, 40000, ?)', (b2, 'Cash'))
 
+        from careblue.services import to_minor, parse_medicines
+        from careblue.migrations import insert_medicine_items
+        import json
+        for row in conn.execute("SELECT p.*, a.doctor_id FROM prescriptions p JOIN appointments a ON a.id=p.appointment_id WHERE p.hospital_id=? AND p.version=0", (hid,)).fetchall():
+            items = parse_medicines(row['medicines'])
+            payload = json.dumps(items)
+            cur = conn.insert("INSERT INTO prescription_versions (prescription_id, version, doctor_id, status, diagnosis, instructions, medicines, reason) VALUES (?,1,?,'Draft',?,?,?,'Fictional demo')",
+                (row['id'], row['doctor_id'], row['diagnosis'], row['instructions'], payload))
+            insert_medicine_items(conn, cur.lastrowid, items)
+            conn.execute("UPDATE prescriptions SET medicines=?, version=1 WHERE id=?", (payload,row['id']))
+        conn.execute("INSERT INTO admissions (bed_id, patient_id, hospital_id) SELECT id, patient_id, hospital_id FROM beds WHERE ward_id=? AND status='Occupied'", (wid,))
         conn.commit()
         logger.info(f"Demo dataset seeded for hospital {hid}")
         return True

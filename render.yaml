@@ -11,6 +11,8 @@ services:
         value: 3.11.11
       - key: SECRET_KEY
         generateValue: true
+      - key: MFA_ENCRYPTION_KEY
+        sync: false
       - key: FLASK_ENV
         value: production
       - key: PYTHONPATH
@@ -19,6 +21,16 @@ services:
         value: app.py
       - key: RENDER
         value: true
-    healthCheckPath: /
+      - key: DATABASE_URL
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+    healthCheckPath: /ready
     autoDeploy: true
     plan: free

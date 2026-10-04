@@ -2,45 +2,20 @@
 {% block title %}Log in{% endblock %}
 {% block content %}
 <div class="md-auth-wrap"><div class="md-auth-card">
-    <div class="md-auth-brand">
-        <div>
-            <span class="md-badge" style="background:rgba(255,255,255,0.16);color:#fff;margin-bottom:0.75rem"><i data-lucide="plus"></i>CareBlue</span>
-            <h2>Care for people,<br>not paperwork.</h2>
-            <p>One calm workspace for roster, registry, ledger and pad.</p>
-        </div>
-        <ul>
-            <li><span class="tick"><i data-lucide="check"></i></span><span><strong>Two roles, one record</strong><br><small>Staff manage records · doctors run rounds</small></span></li>
-            <li><span class="tick"><i data-lucide="check"></i></span><span><strong>Hours that hold</strong><br><small>Weekly slots, breaks and blackout days respected</small></span></li>
-            <li><span class="tick"><i data-lucide="check"></i></span><span><strong>A pad that prints</strong><br><small>Numbered medicines, clean A4 output</small></span></li>
-        </ul>
-        <div class="md-auth-proof"><i data-lucide="shield-check"></i><span>ROLE-BASED · EACH CHART ISOLATED</span></div>
-    </div>
     <div class="md-auth-form">
-        <p class="file-no" style="font-size:0.66rem;font-weight:500;letter-spacing:0.1em;color:var(--md-outline)">CAREBLUE / SIGN-IN</p>
-        <h3>Welcome back</h3>
+        <h1>{{ hospital.name if hospital else 'Welcome back' }}</h1>
         <p class="muted">Sign in to open your dashboard.</p>
-        <form method="POST" action="{{ url_for('login') }}" novalidate>
+        <form method="POST" action="{{ login_url }}" data-submit-message="Signing in…" novalidate class="md-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="md-field" style="margin-bottom:0.9rem"><label for="username">Email / username</label><input id="username" name="username" placeholder="you@hospital.org" required autofocus autocomplete="username"></div>
-            <div class="md-field" style="margin-bottom:0.9rem"><label for="password">Password</label><div class="md-pass-wrap"><input type="password" id="password" name="password" placeholder="Your password" required autocomplete="current-password"><button type="button" class="md-pass-toggle" data-pass-toggle="password" aria-label="Show password" aria-pressed="false"><i data-lucide="eye"></i></button></div></div>
-            <div class="md-field" style="margin-bottom:1.2rem"><label for="user_type">Desk</label><select id="user_type" name="user_type" required><option value="admin">Hospital staff</option><option value="doctor">Doctor</option></select></div>
+            {% if not hospital %}<p class="md-help">If your email or username belongs to multiple hospitals, sign in using your hospital’s workspace address.</p>{% endif %}
+            <div class="md-field"><label for="username">Email / username</label><input id="username" name="username" placeholder="you@hospital.org" required autofocus autocomplete="username"></div>
+            <div class="md-field"><label for="password">Password</label><div class="md-pass-wrap"><input type="password" id="password" name="password" placeholder="Your password" required autocomplete="current-password"><button type="button" class="md-pass-toggle" data-pass-toggle="password" aria-label="Show password" aria-pressed="false"><i data-lucide="eye"></i></button></div></div>
+            <div class="md-field"><label for="user_type">Sign in as</label><select id="user_type" name="user_type" required><option value="admin">Hospital staff</option><option value="doctor">Doctor</option></select></div>
+        <details class="md-expansion"><summary>Authenticator code (if enabled)</summary><div class="md-expansion-body"><div class="md-field"><label for="mfa_code">Authenticator code (if enabled)</label><input name="mfa_code" id="mfa_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6"></div></div></details>
             <button class="md-btn md-btn--filled md-btn--lg md-full" type="submit">Sign in<i data-lucide="arrow-right"></i></button>
-        </form>
-        <p class="md-caption" style="margin-top:1rem">New hospital? <a href="{{ url_for('register') }}">Create a new account</a></p>
-        <div class="md-cluster" style="margin-top:0.5rem;justify-content:space-between">
-            <p class="md-caption" style="margin:0">Demo · <code>admin@hospital.com</code> / <code>admin123</code></p>
-            <button type="button" class="md-btn md-btn--text md-btn--sm" id="fillDemo">Autofill</button>
-        </div>
+
+</form>
+<p><a href="{{ url_for('auth.reset_password') }}">Reset password</a></p>
     </div>
 </div></div>
-{% endblock %}
-{% block extra_js %}
-<script>
-document.getElementById('fillDemo').addEventListener('click', () => {
-  document.getElementById('username').value = 'admin@hospital.com';
-  document.getElementById('password').value = 'admin123';
-  document.getElementById('user_type').value = 'admin';
-  document.getElementById('password').focus();
-});
-</script>
 {% endblock %}

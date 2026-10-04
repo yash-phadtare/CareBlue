@@ -1,99 +1,20 @@
 {% extends "base.html" %}
-{% block title %}Schedule visit{% endblock %}
-{% block page_title %}Schedule visit{% endblock %}
-{% block crumbs %}overview · schedule{% endblock %}
+{% from 'components/patient_fields.html' import patient_fields with context %}
+{% block title %}Add visit{% endblock %}
+{% block page_title %}Add visit{% endblock %}
+{% block crumbs %}appointments · new{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Booking</p><h2 class="md-h2">Schedule visit</h2><p class="md-sub">Patient → doctor → date → free slot.</p></div>
-    <a href="{{ url_for('view_appointments') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>All visits</a>
-</div></div>
-<div class="md-steps" data-steps aria-label="Booking steps"><span class="on">1 · People</span><i data-lucide="chevron-right"></i><span>2 · Date</span><i data-lucide="chevron-right"></i><span>3 · Slot</span></div>
-<div class="md-card"><div class="md-card-body">
-    <form method="POST" action="{{ url_for('schedule_appointment') }}" id="appointmentForm">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="md-form-section"><h6><span class="md-sec-no">A</span>People</h6>
-        <div class="md-grid-3 toolbar-gap">
-            <div class="md-field"><label for="patient_id">Patient</label>
-                <select id="patient_id" name="patient_id" required data-searchable>
-                    <option value="">Select patient</option>
-                    {% for patient in patients %}<option value="{{ patient.id }}" {% if request.args.get('patient_id') == patient.id|string %}selected{% endif %}>{{ patient.name }}</option>{% endfor %}
-                </select><p class="md-error-text">Choose a patient.</p><p class="md-help">Type to filter as the registry grows.</p></div>
-            <div class="md-field"><label for="doctor_id">Doctor</label>
-                <select id="doctor_id" name="doctor_id" required data-searchable>
-                    <option value="">Select doctor</option>
-                    {% for doctor in doctors %}<option value="{{ doctor.id }}" {% if request.args.get('doctor_id') == doctor.id|string %}selected{% endif %}>Dr. {{ doctor.name }} ({{ doctor.specialization }})</option>{% endfor %}
-                </select><p class="md-error-text">Choose a doctor.</p><p class="md-help">Only doctors with weekly hours can be booked.</p></div>
-            <div class="md-field"><label for="date">Date</label><input type="date" id="date" name="date" required min="{{ min_date }}"><p class="md-error-text">Choose a date.</p><p class="md-help">Only days with hours show slots.</p></div>
-        </div>
-        </div>
-        <div class="md-form-section"><h6><span class="md-sec-no">B</span>Time slot</h6>
-        <div class="md-slot-legend" aria-hidden="true"><span><i class="md-dot" style="background:var(--md-primary)"></i>Free</span><span><i class="md-dot" style="background:var(--md-on-surface)"></i>Selected</span><span><i class="md-dot" style="background:transparent;border:1.5px dashed var(--md-outline)"></i>Booked</span></div>
-        <input type="hidden" id="time_slot" name="time_slot" required>
-        <div id="time_slots" role="listbox" aria-label="Available time slots"><div class="md-empty" style="padding:1.5rem"><div class="md-empty-icon" style="width:52px;height:52px;font-size:1.2rem"><i data-lucide="calendar-days"></i></div><p style="margin:0">Select a doctor and date to see free slots</p></div></div>
-        </div>
-        <div class="md-form-section"><h6><span class="md-sec-no">C</span>Visit note <span class="md-caption">(optional)</span></h6>
-        <div class="md-field" style="margin:0"><label for="notes">Notes</label><textarea id="notes" name="notes" rows="2" placeholder="Reason for visit, instructions..."></textarea><p class="md-help">Shown on the visit row for staff and doctors.</p></div>
-        </div>
-        <div class="md-cluster md-cluster--end" style="margin-top:1.25rem">
-            <a href="{{ url_for('view_appointments') }}" class="md-btn md-btn--light">Cancel</a>
-            <button type="submit" class="md-btn md-btn--filled" id="submitBtn" disabled><i data-lucide="calendar-check"></i>Confirm visit</button>
-        </div>
-    </form>
-</div></div>
+<div class="md-page-head"><div><h1 class="md-h2">Add visit</h1><p class="md-sub">Add a walk-in to today’s queue or choose a date and time.</p></div><a href="{{ back_url('admin.view_appointments') }}" class="md-btn md-btn--light">{{ 'Back to results' if return_context else 'All visits' }}</a></div>
+<div class="md-card form-width-wide"><div class="md-card-body"><form method="POST" action="{{ context_link('admin.schedule_appointment') }}" id="appointmentForm" class="md-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="idempotency_key" value="{{ request_token() }}">
+<fieldset class="md-choice-group"><legend>Visit type</legend><div class="md-cluster"><label class="md-check"><input type="radio" id="walkInMode" name="booking_mode" value="walk_in" checked>Walk-in today</label><label class="md-check"><input type="radio" id="timedMode" name="booking_mode" value="timed">Choose date &amp; time</label></div></fieldset>
+<fieldset class="md-choice-group"><legend>Patient</legend><div class="md-cluster"><label class="md-check"><input type="radio" name="patient_mode" value="existing" checked>Existing patient</label>{% if can('registry') %}<label class="md-check"><input type="radio" name="patient_mode" value="new">New patient</label>{% endif %}</div></fieldset>
+<div id="existingPatientFields" class="md-field"><label for="patient_id">Find patient</label><select id="patient_id" name="patient_id" required data-searchable data-search-placeholder="Name or phone number"><option value="">Select patient</option>{% for patient in patients %}<option value="{{ patient.id }}" {% if request.args.get('patient_id')==patient.id|string %}selected{% endif %}>{{ patient.name }} · #{{ patient.id }}</option>{% endfor %}</select></div>
+<fieldset id="newPatientFields" hidden disabled class="md-choice-group md-stack">{{ patient_fields(prefix='patient_') }}</fieldset>
+<div class="md-field"><label for="doctor_id">Doctor</label><select id="doctor_id" name="doctor_id" required data-searchable><option value="">Select doctor</option>{% for doctor in doctors %}<option value="{{ doctor.id }}" {% if request.args.get('doctor_id')==doctor.id|string or (doctors|length==1 and not request.args.get('doctor_id')) %}selected{% endif %}>Dr. {{ doctor.name }} · {{ doctor.specialization }}</option>{% endfor %}</select><p class="md-help">Walk-ins do not need weekly hours or a time slot.</p></div>
+<fieldset id="timedBooking" class="md-choice-group md-stack" hidden disabled><legend>Appointment time</legend><div class="md-grid-2"><div class="md-field"><label for="date">Date</label><input type="date" id="date" name="date" value="{{ min_date }}" required></div><div class="md-field"><label for="time_slot">Time</label><input type="time" id="time_slot" name="time_slot" required><p class="md-help">Enter a time or choose one below. Suggestions are optional.</p></div></div><div class="md-split"><p class="md-caption">Suggested times</p><button type="button" id="firstFreeTime" class="md-btn md-btn--text md-btn--sm" disabled>Use first free time</button></div><p id="slotStatus" class="md-help m-0" role="status"></p><div id="time_slots" role="group" aria-label="Suggested appointment times"></div></fieldset>
+<details class="md-expansion"><summary>Visit note (optional)</summary><div class="md-expansion-body"><div class="md-field"><label for="notes">Notes</label><textarea id="notes" name="notes" maxlength="10000" rows="2" placeholder="Reason for visit, instructions…"></textarea></div></div></details>
+<p id="bookingReadyHint" class="md-help m-0" role="status"></p><div class="md-form-actions"><a href="{{ back_url('admin.view_appointments') }}" class="md-btn md-btn--light">Cancel</a><button type="submit" class="md-btn md-btn--filled" id="submitBtn" aria-describedby="bookingReadyHint">Add to queue</button></div>
+</form></div></div>
 {% endblock %}
-
-{% block extra_js %}
-<script>
-(function () {
-  'use strict';
-  function formatTime(t) { const [h, m] = t.split(':'); const p = +h >= 12 ? 'PM' : 'AM'; return `${+h % 12 || 12}:${m} ${p}`; }
-  function validateForm() {
-    const ok = document.getElementById('patient_id').value && document.getElementById('doctor_id').value
-      && document.getElementById('date').value && document.getElementById('time_slot').value;
-    document.getElementById('submitBtn').disabled = !ok;
-  }
-  function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-  async function loadSlots() {
-    const d = document.getElementById('doctor_id').value;
-    const dt = document.getElementById('date').value;
-    const box = document.getElementById('time_slots');
-    const paint = (html) => { box.innerHTML = html; try { if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.5 } }); } catch (e) {} };
-    document.getElementById('time_slot').value = '';
-    validateForm();
-    if (!(d && dt)) return;
-    paint('<div class="md-skeleton-grid" role="status" aria-label="Loading time slots"><div class="md-skeleton"></div><div class="md-skeleton"></div><div class="md-skeleton"></div><div class="md-skeleton"></div><div class="md-skeleton"></div><div class="md-skeleton"></div></div>');
-    try {
-      const res = await fetch(`/admin/get_doctor_slots/${encodeURIComponent(d)}/${encodeURIComponent(dt)}`);
-      const data = await res.json();
-      if (data.error) { paint(`<div class="md-banner-inline md-banner-inline--warning"><i data-lucide="triangle-alert"></i><span>${esc(data.error)}</span></div>`); return; }
-      if (!data.slots.length) { paint('<div class="md-banner-inline md-banner-inline--info"><i data-lucide="info"></i><span>No hours configured for this day — pick another date or update the doctor\u2019s week.</span></div>'); return; }
-      let h = '<div class="md-slot-grid" role="presentation">';
-      data.slots.forEach((s) => {
-        const b = data.booked_slots.includes(s.start);
-        h += `<button type="button" class="md-slot${b ? ' booked' : ''}" role="option" aria-selected="false" tabindex="${b ? '-1' : '0'}" ${b ? 'disabled aria-disabled="true"' : `onclick="selectSlot(this)"`} aria-label="${esc(formatTime(s.start))}${b ? ' booked' : ''}" data-start="${esc(s.start)}"><span class="md-slot-time">${esc(formatTime(s.start))}</span><small>${esc(formatTime(s.end))}</small>${b ? '<span style="font-size:0.72rem;margin-top:0.15rem">Booked</span>' : ''}</button>`;
-      });
-      paint(h + '</div>');
-    } catch (e) {
-      paint('<div class="md-banner-inline" style="border-left-color:var(--md-error)" role="alert"><i data-lucide="x"></i><span>Could not load slots. Check connection and retry.</span></div>');
-    }
-  }
-  document.addEventListener('DOMContentLoaded', function () {
-    validateForm();
-    ['patient_id', 'doctor_id', 'date'].forEach((id) => {
-      document.getElementById(id).addEventListener('change', () => { validateForm(); if (window.mdUpdateSteps) window.mdUpdateSteps(); });
-    });
-    document.getElementById('doctor_id').addEventListener('change', loadSlots);
-    document.getElementById('date').addEventListener('change', loadSlots);
-    document.getElementById('appointmentForm').addEventListener('submit', (e) => {
-      if (!document.getElementById('time_slot').value) {
-        e.preventDefault();
-        window.mdNotify ? window.mdNotify('Please pick a time slot below before confirming.', 'warning')
-          : null;
-        document.getElementById('time_slots').scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
-    });
-    if (document.getElementById('doctor_id').value && document.getElementById('date').value) loadSlots();
-  });
-})();
-</script>
-{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static',filename='js/pages/admin_schedule_appointment.js') }}"></script>{% endblock %}

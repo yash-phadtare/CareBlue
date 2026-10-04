@@ -1,0 +1,7 @@
+{% from 'components/medicine_fields.html' import medicine_row as medicine_fields %}
+{% macro medicine_row(n, medicine={}) %}
+<details class="md-medicine-entry"{% if n == 1 %} open{% endif %}>
+    <summary><span class="md-medicine-summary"><strong data-medicine-title>{{ medicine.get('name') or ('Medicine ' ~ n) }}</strong><span data-medicine-overview class="md-caption">{{ medicine.get('dosage','') }}{% if medicine.get('frequency') %} · {{ medicine.frequency }}{% endif %}{% if medicine.get('route') %} · {{ medicine.route }}{% endif %}{% if medicine.get('duration') %} · {{ medicine.duration }}{% endif %}</span><span data-medicine-extra-summary class="md-caption"></span></span><span class="md-medicine-toggle md-caption" aria-hidden="true">Edit</span></summary>
+    {{ medicine_fields(n,medicine) }}
+</details>
+{% endmacro %}

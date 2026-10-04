@@ -3,39 +3,42 @@
 {% block page_title %}Prescription{% endblock %}
 {% block crumbs %}rounds · prescription{% endblock %}
 {% block content %}
-<div class="md-page-head no-print"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Print check</p><h2 class="md-h2">Rx #<span class="md-mono-nums">{{ prescription.appointment_id }}</span></h2><p class="md-sub">Read once, then hand the pad copy to the patient.</p></div>
-    <a href="{{ url_for('prescriptions', appointment_id=prescription.appointment_id) }}" class="md-btn md-btn--light"><i data-lucide="pencil"></i>Amend</a>
+<div class="md-page-head no-print"><div class="md-split items-end">
+    <div><h1 class="md-h2">Rx #<span class="md-mono-nums">{{ prescription.appointment_id }}</span></h1><p class="md-sub">Read once, then hand the pad copy to the patient.</p></div>
+    <div class="md-cluster"><button data-action="print" class="md-btn md-btn--filled" type="button"><i data-lucide="printer"></i>Print pad copy</button><a href="{{ context_link('doctor.prescriptions', appointment_id=prescription.appointment_id) }}" class="md-btn md-btn--light"><i data-lucide="pencil"></i>Back to edit</a></div>
 </div></div>
-<div class="md-rx" role="document" aria-label="Prescription">
-    <div class="md-rx-head" style="text-align:center">
+<p class="md-banner-inline">{{ prescription.prescription_status or 'Draft' }} · Version {{ prescription.version or 0 }}{% if prescription.prescription_status == 'Draft' %} · UNSIGNED — for review only{% endif %}</p><div class="md-rx document-{{ prescription.document_style or 'standard' }}" role="document" aria-label="Prescription">
+    {% if prescription.identity_provenance %}<p class="md-caption">{{ prescription.identity_provenance }}</p>{% endif %}
+    <div class="md-rx-head text-center">
         <div class="md-rx-name">{{ prescription.hospital_name }}</div>
+        <p class="document-contact">{{ prescription.hospital_address or '' }}<br>{{ prescription.hospital_phone or '' }} {{ prescription.hospital_email or '' }}</p>
         <div class="md-rx-sub">OPD prescription · not for medico-legal use</div>
     </div>
 
-    <div class="md-rx-box" style="margin-top:1.25rem">
+    <div class="md-rx-box mt-4">
         <div class="md-rx-meta">
-            <div><span class="md-rx-label">Patient · </span><strong>{{ prescription.patient_name }}</strong><br><span class="md-caption md-mono-nums">AGE/SEX {{ prescription.age }}/{{ prescription.gender|first }} · {{ prescription.date }} · {{ prescription.time_slot }}</span></div>
-            <div style="text-align:right"><span class="md-rx-label">Rx no · </span><strong class="md-mono-nums">#{{ prescription.appointment_id }}</strong></div>
+            <div><span class="md-rx-label">Patient · </span><strong>{{ prescription.patient_name }}</strong><br><span class="md-caption md-mono-nums">Age {{ prescription.age|age_display }} · Gender {{ prescription.gender }} · {{ prescription.date|date_display }} · {{ prescription.time_slot|time_display }}</span></div>
+            <div class="text-right"><span class="md-rx-label">Rx no · </span><strong class="md-mono-nums">#{{ prescription.appointment_id }}</strong></div>
         </div>
     </div>
 
     <div class="md-rx-box">
-        <div class="md-rx-label" style="margin-bottom:0.25rem">Diagnosis</div>
-        <p style="margin:0">{{ prescription.diagnosis }}</p>
+        <div class="md-rx-label mb-1">Diagnosis</div>{% if prescription.allergies %}<p class="clinical-copy"><strong>Allergies:</strong> {{ prescription.allergies }}</p>{% endif %}
+        <p class="clinical-copy m-0">{{ prescription.diagnosis }}</p>
     </div>
 
-    <p class="md-rx-glyph" aria-hidden="true">℞</p>
-    <div style="margin-bottom:0.5rem">
+    {% if prescription.medicines_parsed %}<p class="md-rx-glyph" aria-hidden="true">℞</p>{% endif %}
+    <div class="mb-2">
         {% for medicine in prescription.medicines_parsed %}
         <div class="md-rx-med">
             <div class="md-split">
                 <strong><span class="md-caption md-mono-nums">{{ loop.index }}.</span> {{ medicine.name }}</strong>
                 <span class="md-badge md-badge--neutral md-mono-nums">{{ medicine.dosage }}</span>
             </div>
-            <div class="md-caption md-mono-nums" style="margin-top:0.25rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.25rem 1rem">
+            <div class="md-caption md-mono-nums medicine-details">
                 <span>{% if medicine.morning == '1' %}MORNING{% endif %}{% if medicine.afternoon == '1' %}{% if medicine.morning == '1' %} — {% endif %}AFTERNOON{% endif %}{% if medicine.evening == '1' %}{% if medicine.morning == '1' or medicine.afternoon == '1' %} — {% endif %}EVENING{% endif %}{% if medicine.morning != '1' and medicine.afternoon != '1' and medicine.evening != '1' %}AS DIRECTED{% endif %}</span>
-                <span>{{ medicine.frequency }} · {{ medicine.meal|upper }} MEAL</span>
+                <span>{{ medicine.frequency }}{% if medicine.meal in ['before','after'] %} · {{ medicine.meal|capitalize }} meal{% endif %}</span>
+                <span>{% if medicine.strength %}{{ medicine.strength }} · {% endif %}{{ medicine.route|default('') }}{% if medicine.duration %} · {{ medicine.duration }}{% endif %}</span>
             </div>
         </div>
         {% endfor %}
@@ -43,19 +46,16 @@
 
     {% if prescription.instructions %}
     <div class="md-rx-box">
-        <div class="md-rx-label" style="margin-bottom:0.25rem">Doctor's note</div>
-        <p style="margin:0">{{ prescription.instructions }}</p>
+        <div class="md-rx-label mb-1">Doctor's note</div>
+        <p class="clinical-copy m-0">{{ prescription.instructions }}</p>
     </div>
     {% endif %}
 
+    {% if prescription.document_footer %}<p class="document-contact">{{ prescription.document_footer }}</p>{% endif %}
     <div class="md-rx-sign">
         <div class="sig-line">Patient's signature</div>
-        <div style="text-align:center"><p style="margin:0"><strong>Dr. {{ prescription.doctor_name }}</strong></p><p class="md-caption" style="margin:0 0 0.5rem">{{ prescription.specialization }}</p><div class="sig-line">Doctor's signature + stamp</div></div>
+        <div class="text-center"><p class="m-0"><strong>Dr. {{ prescription.doctor_name }}</strong></p><p class="md-caption mb-2">{{ prescription.specialization }}</p><div class="sig-line">Doctor's signature + stamp</div></div>
     </div>
 
-    <div class="no-print md-cluster" style="justify-content:center;margin-top:1.5rem">
-        <button onclick="window.print()" class="md-btn md-btn--filled" type="button"><i data-lucide="printer"></i>Print pad copy</button>
-        <a href="{{ url_for('prescriptions', appointment_id=prescription.appointment_id) }}" class="md-btn md-btn--outlined"><i data-lucide="pencil"></i>Back to edit</a>
-    </div>
 </div>
 {% endblock %}

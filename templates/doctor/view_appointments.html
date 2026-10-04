@@ -4,49 +4,45 @@
 {% block crumbs %}rounds · visits{% endblock %}
 {% block content %}
 <div class="md-page-head">
-    <p class="md-eyebrow">Consult queue</p>
-    <h2 class="md-h2">Visits <span class="md-count-tag">· {{ appointments|length }}{% if search_query or status_filter %} of {{ appointments_total }}{% endif %}</span></h2>
+
+    <h1 class="md-h2">Visits <span class="md-count-tag">· {{ pagers[0].total if pagers else appointments|length }}{% if search_query or status_filter or request.args.get('period','all') != 'all' %} of {{ appointments_total }}{% endif %}</span></h1>
     <p class="md-sub">Write prescriptions, mark visits complete, or cancel with confirmation.</p>
 </div>
-<div class="md-card"><div class="md-card-body">
-    <form class="md-toolbar" method="GET" action="{{ url_for('doctor_appointments') }}" role="search">
+<div class="md-card md-collection md-collection--visits"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('doctor.doctor_appointments') }}" role="search">
+        {{ search_state() }}
         <div class="md-field"><label for="q">Search</label><input type="search" id="q" name="search" placeholder="Patient..." value="{{ search_query }}"></div>
         <div class="md-field field-narrow"><label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option><option value="Scheduled" {% if status_filter=='Scheduled' %}selected{% endif %}>Scheduled</option><option value="Completed" {% if status_filter=='Completed' %}selected{% endif %}>Completed</option><option value="Cancelled" {% if status_filter=='Cancelled' %}selected{% endif %}>Cancelled</option></select></div>
         <button class="md-btn md-btn--filled" type="submit">Apply</button>
-        {% if search_query or status_filter %}<a href="{{ url_for('doctor_appointments') }}" class="md-btn md-btn--light">Reset</a>{% endif %}
+        {% if search_query or status_filter or request.args.get('period','all') != 'all' %}<a href="{{ url_for('doctor.doctor_appointments') }}" class="md-btn md-btn--light">Reset</a>{% endif %}
     </form>
-    <div class="md-chip-row mb-1" role="group" aria-label="Quick status filter">
-        <a class="md-chip {{ 'on' if not status_filter }}" href="{{ url_for('doctor_appointments') }}" {% if not status_filter %}aria-current="true"{% endif %}>All</a>
-        <a class="md-chip {{ 'on' if status_filter=='Scheduled' }}" href="{{ url_for('doctor_appointments') }}?status=Scheduled">Scheduled</a>
-        <a class="md-chip {{ 'on' if status_filter=='Completed' }}" href="{{ url_for('doctor_appointments') }}?status=Completed">Completed</a>
-        <a class="md-chip {{ 'on' if status_filter=='Cancelled' }}" href="{{ url_for('doctor_appointments') }}?status=Cancelled">Cancelled</a>
-    </div>
-    {% if appointments %}
-    <div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="8"><caption class="md-sr-only">My visits</caption>
-        <thead><tr><th scope="col">#</th><th scope="col">Patient</th><th scope="col">Age</th><th scope="col">When</th><th scope="col">Status</th><th scope="col" class="text-right">Actions</th></tr></thead>
+    {{ period_controls() }}
+    {{ sort_controls() }}
+{% if appointments %}
+    <div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards data-page-size="8"><caption class="md-sr-only">My visits</caption>
+        <thead><tr><th scope="col">#</th><th scope="col"{% if request.args.get('sort')=='patient_name' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('patient_name','Patient') }}</th><th scope="col">Age</th><th scope="col"{% if request.args.get('sort')=='date' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('date','When') }}</th><th scope="col"{% if request.args.get('sort')=='status' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('status','Status') }}</th><th scope="col" class="text-right">Actions</th></tr></thead>
         <tbody>{% for app in appointments %}<tr>
             <td class="md-row-no">{{ '%02d' % loop.index }}</td>
             <td><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ app.patient_name[0]|upper }}</span><strong>{{ app.patient_name }}</strong></span></td>
-            <td class="md-mono-nums">{{ app.age }}</td><td class="md-mono-nums">{{ app.date }} · {{ app.time_slot }}</td>
+            <td class="md-mono-nums">{{ app.age|age_display }}</td><td class="md-mono-nums">{{ app.date|date_display }} · {{ app.time_slot|time_display }}</td>
             <td><span class="md-badge md-badge--{{ 'done' if app.status == 'Completed' else ('cancel' if app.status == 'Cancelled' else 'sched') }}"><i data-lucide="{{ 'check' if app.status == 'Completed' else ('x' if app.status == 'Cancelled' else 'clock') }}" aria-hidden="true"></i>{{ app.status }}</span></td>
             <td class="text-right"><span class="md-row-actions">
-                <a href="{{ url_for('prescriptions', appointment_id=app.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Write prescription for {{ app.patient_name }}"><i data-lucide="pill"></i>Prescribe</a>
+                <a href="{{ context_link('doctor.prescriptions', appointment_id=app.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Open prescription for {{ app.patient_name }}"><i data-lucide="pill"></i>Prescription</a>
+                {% if app.patient_id %}<a href="{{ context_link('doctor.patient_history',patient_id=app.patient_id) }}" class="md-btn md-btn--text md-btn--sm" aria-label="Open history for {{ app.patient_name }}">History</a>{% endif %}
                 {% if app.status == 'Scheduled' %}
                 <span class="md-menu-wrap">
                     <button class="md-icon-btn md-icon-btn--sm" type="button" data-md-menu="docApptMenu{{ app.id }}" aria-label="More actions for {{ app.patient_name }}" aria-expanded="false"><i data-lucide="ellipsis-vertical"></i></button>
                     <div class="md-menu" id="docApptMenu{{ app.id }}" role="menu" aria-label="Visit actions">
-                        <form method="POST" action="{{ url_for('update_appointment_status', appointment_id=app.id) }}" data-confirm="Mark visit #{{ app.id }} ({{ app.patient_name }}) complete?" class="mt-0">
+                        <form method="POST" action="{{ context_link('doctor.update_appointment_status', appointment_id=app.id) }}" data-confirm="Mark visit #{{ app.id }} ({{ app.patient_name }}) complete?" class="mt-0">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="Completed"><button class="md-menu-item" aria-label="Mark {{ app.patient_name }} complete" type="submit" role="menuitem"><i data-lucide="check"></i>Mark complete</button></form>
-                        <form method="POST" action="{{ url_for('update_appointment_status', appointment_id=app.id) }}" data-confirm="Cancel visit #{{ app.id }} ({{ app.patient_name }}, {{ app.date }})? The slot becomes free." class="mt-0">
+                        <form method="POST" action="{{ context_link('doctor.update_appointment_status', appointment_id=app.id) }}" data-confirm="Cancel visit #{{ app.id }} ({{ app.patient_name }}, {{ app.date|date_display }})? The slot becomes free." class="mt-0">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="status" value="Cancelled"><button class="md-menu-item" aria-label="Cancel visit of {{ app.patient_name }}" type="submit" role="menuitem"><i data-lucide="x"></i>Cancel visit</button></form>
                     </div>
                 </span>
-                {% else %}
-                <span class="md-caption">No actions — {{ app.status|lower }}</span>
                 {% endif %}
             </span></td>
         </tr>{% endfor %}</tbody>
     </table></div></div>
-    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="calendar-check"></i></div><h5>No visits found</h5><p>{% if search_query or status_filter %}No visits match these filters. Clear them to see the full queue.{% else %}No visits scheduled yet. New bookings will appear here.{% endif %}</p>{% if search_query or status_filter %}<a href="{{ url_for('doctor_appointments') }}" class="md-btn md-btn--light md-btn--sm">Clear filters</a>{% endif %}</div>{% endif %}
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="calendar-check"></i></div><h2>No visits found</h2><p>{% if search_query or status_filter or request.args.get('period','all') != 'all' %}No visits match these filters. Clear them to see the full queue.{% else %}No visits scheduled yet. New bookings will appear here.{% endif %}</p>{% if search_query or status_filter or request.args.get('period','all') != 'all' %}<a href="{{ url_for('doctor.doctor_appointments') }}" class="md-btn md-btn--light md-btn--sm">Clear filters</a>{% endif %}</div>{% endif %}
 </div></div>
 {% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Platform operator sign in{% endblock %}
+{% block content %}
+<div class="md-auth-wrap"><div class="md-auth-card"><div class="md-auth-form"><h1>Operator sign in</h1><p class="muted">Use your platform operator account.</p>
+<form method="POST" action="{{ url_for('auth.platform_login') }}" data-submit-message="Signing in…" class="md-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="md-field"><label for="username">Operator email</label><input id="username" name="username" type="email" autocomplete="username" required></div>
+<div class="md-field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+<details class="md-expansion"><summary>Authenticator code (if enabled)</summary><div class="md-expansion-body"><div class="md-field"><label for="mfa_code">Authenticator code (if enabled)</label><input id="mfa_code" name="mfa_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div></div></details>
+<button class="md-btn md-btn--filled" type="submit">Sign in to platform</button></form>
+<p><a href="{{ url_for('auth.login') }}">Hospital team sign in</a></p></div></div></div>
+{% endblock %}

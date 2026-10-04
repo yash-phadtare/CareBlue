@@ -3,11 +3,12 @@
 {% block page_title %}{{ patient.name }}{% endblock %}
 {% block crumbs %}rounds · patients · record{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div class="md-cluster"><span class="md-avatar" style="width:48px;height:48px;font-size:1.2rem" aria-hidden="true">{{ patient.name[0]|upper }}</span><div><p class="md-eyebrow">Patient record · MRN-{{ '%04d' % patient.id }}</p><h2 class="md-h2">{{ patient.name }}</h2><p class="md-sub tnum">{{ patient.age }} yrs · {{ patient.gender }} · {{ patient.contact }}</p></div></div>
-    <div class="md-cluster"><button class="md-btn md-btn--light no-print" onclick="window.print()" type="button"><i data-lucide="printer"></i>Print</button><a href="{{ url_for('all_patients_history') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>Patients</a></div>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><p class="md-eyebrow">Patient record · MRN-{{ '%04d' % patient.id }}</p><h1 class="md-h2">{{ patient.name }}</h1><p class="md-sub tnum">{{ (patient.age|string ~ ' years') if patient.age is not none else 'Age not recorded' }} · {{ patient.gender or 'Gender not recorded' }}{% if patient.contact %} · {{ patient.contact }}{% endif %}</p></div>
+    <div class="md-cluster"><button class="md-btn md-btn--light no-print" data-action="print" type="button" aria-label="Print current patient record section"><i data-lucide="printer"></i>Print section</button><a href="{{ back_url('doctor.all_patients_history') }}" class="md-btn md-btn--light"><i data-lucide="arrow-left"></i>{{ 'Back to results' if return_context else 'Patients' }}</a></div>
 </div></div>
-<div class="md-main-2col">
+<div class="md-banner-inline mb-4" role="note"><strong>Allergies:</strong><span>{{ patient.allergies or 'Not recorded — confirm with the patient.' }}</span></div>
+<div class="md-record">
     <div class="md-card">
         <div class="md-card-body" data-md-tabs>
             <div class="md-tabs" role="tablist" aria-label="Patient record sections">
@@ -16,54 +17,36 @@
                 <button class="md-tab" role="tab" id="tab-visits" aria-controls="panel-visits" aria-selected="false" tabindex="-1"><i data-lucide="calendar-check"></i>Visits · {{ appointments|length }}</button>
             </div>
             <div class="md-tabpanel" id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
-                <div class="md-cluster" style="gap:1.5rem 2rem;margin-bottom:1rem">
-                    <div><p class="md-caption">CONTACT</p><p><strong>{{ patient.contact }}</strong></p></div>
-                    <div><p class="md-caption">ADDRESS</p><p><strong>{{ patient.address or '—' }}</strong></p></div>
-                    <div><p class="md-caption">AGE / GENDER</p><p class="tnum"><strong>{{ patient.age }} / {{ patient.gender }}</strong></p></div>
-                </div>
-                <div class="md-section-head"><h6>Medical history</h6></div>
-                <p style="margin:0;color:var(--md-on-surface-variant)">{{ patient.medical_history or 'Nothing recorded yet.' }}</p>
+                <dl class="md-record-facts">
+                    <div><dt>Contact</dt><dd>{{ patient.contact or 'Not recorded' }}</dd></div>
+                    <div><dt>Address</dt><dd>{{ patient.address or 'Not recorded' }}</dd></div>
+                    <div><dt>Age / gender</dt><dd class="tnum">{{ patient.age|age_display }} / {{ patient.gender or 'Not recorded' }}</dd></div>
+                </dl>
+                <div class="md-section-head"><h2 class="md-section-title">Medical history</h2></div>
+                <p class="clinical-copy text-muted m-0">{{ patient.medical_history or 'Nothing recorded yet.' }}</p>
             </div>
             <div class="md-tabpanel" id="panel-rx" role="tabpanel" aria-labelledby="tab-rx" tabindex="0" hidden>
                 {% if prescriptions %}{% for pr in prescriptions %}
                     <details class="md-expansion" {% if loop.first %}open{% endif %}>
-                        <summary>{{ pr.date }} — {{ pr.diagnosis }}<span class="md-exp-chevron"><i data-lucide="chevron-down"></i></span></summary>
+                        <summary><span class="md-record-rx-summary"><span><strong>{{ pr.date|date_display }}</strong> · {{ pr.diagnosis|truncate(90,true) }}<span class="md-caption">Dr. {{ pr.doctor_name }} · Version {{ pr.version or 0 }}</span></span><span class="md-badge md-badge--{{ 'done' if pr.status in ['Signed','Amended'] else 'neutral' }}">{{ pr.status or 'Draft' }}</span></span></summary>
                         <div class="md-expansion-body">
-                            <ol>
-                                {% for m in pr.medicines_parsed %}<li><strong>{{ m.name }}</strong> · {{ m.dosage }} · {{ m.frequency }} <span style="color:var(--md-on-surface-variant)">({{ m.meal }} meal)</span></li>{% endfor %}
-                            </ol>
-                            {% if pr.instructions %}<p class="md-caption" style="margin:0.5rem 0 0"><strong>Instructions:</strong> {{ pr.instructions }}</p>{% endif %}
+                            {% if not pr.status or pr.status == 'Draft' %}<p class="md-banner-inline">Unsigned draft · for review only.</p>{% endif %}
+                            <p class="clinical-copy"><strong>Diagnosis / findings:</strong> {{ pr.diagnosis }}</p>
+                            {% if pr.medicines_parsed %}<ol class="md-record-medicines">
+                                {% for m in pr.medicines_parsed %}<li><strong>{{ m.name }}{% if m.strength %} · {{ m.strength }}{% endif %}</strong><div class="medicine-details">{{ m.dosage }} · {{ m.frequency }}{% if m.route %} · {{ m.route }}{% endif %}{% if m.duration %} · {{ m.duration }}{% endif %}{% if m.meal in ['before','after'] %} · {{ m.meal|capitalize }} meal{% endif %}</div>{% if m.morning == '1' or m.afternoon == '1' or m.evening == '1' %}<div class="medicine-details">{% if m.morning == '1' %}Morning{% endif %}{% if m.afternoon == '1' %}{{ ' · ' if m.morning == '1' else '' }}Afternoon{% endif %}{% if m.evening == '1' %}{{ ' · ' if m.morning == '1' or m.afternoon == '1' else '' }}Evening{% endif %}</div>{% endif %}</li>{% endfor %}
+                            </ol>{% else %}<p class="md-help">Advice-only consultation · no medicines prescribed.</p>{% endif %}
+                            {% if pr.instructions %}<p class="clinical-copy mt-2"><strong>Advice / follow-up:</strong> {{ pr.instructions }}</p>{% endif %}
                         </div>
                     </details>
-                {% endfor %}{% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="pill"></i></div><h5>No prescriptions</h5><p>Nothing prescribed yet for this patient.</p></div>{% endif %}
+                {% endfor %}{% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="pill"></i></div><h2>No prescriptions</h2><p>Nothing prescribed yet for this patient.</p></div>{% endif %}
             </div>
             <div class="md-tabpanel" id="panel-visits" role="tabpanel" aria-labelledby="tab-visits" tabindex="0" hidden>
                 {% if appointments %}
-                <div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="8"><caption class="md-sr-only">Visit history</caption><thead><tr><th scope="col">#</th><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Doctor</th><th scope="col">Status</th></tr></thead>
-                <tbody>{% for app in appointments %}<tr><td class="md-row-no">{{ '%02d' % loop.index }}</td><td class="tnum">{{ app.date }}</td><td class="tnum">{{ app.time_slot }}</td><td>Dr. {{ app.doctor_name }}</td><td><span class="md-badge md-badge--{{ 'done' if app.status == 'Completed' else ('cancel' if app.status == 'Cancelled' else 'sched') }}"><i data-lucide="{{ 'check' if app.status == 'Completed' else ('x' if app.status == 'Cancelled' else 'clock') }}" aria-hidden="true"></i>{{ app.status }}</span></td></tr>{% endfor %}</tbody></table></div></div>
-                {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="calendar-x"></i></div><h5>No visits</h5><p>No visit records for this patient yet.</p></div>{% endif %}
+                <div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-mobile-cards data-page-size="8"><caption class="md-sr-only">Visit history</caption><thead><tr><th scope="col">#</th><th scope="col">Date</th><th scope="col">Time</th><th scope="col">Doctor</th><th scope="col">Status</th></tr></thead>
+                <tbody>{% for app in appointments %}<tr><td class="md-row-no">{{ '%02d' % loop.index }}</td><td class="tnum">{{ app.date|date_display }}</td><td class="tnum">{{ app.time_slot|time_display }}</td><td>Dr. {{ app.doctor_name }}</td><td><span class="md-badge md-badge--{{ 'done' if app.status == 'Completed' else ('cancel' if app.status == 'Cancelled' else 'sched') }}"><i data-lucide="{{ 'check' if app.status == 'Completed' else ('x' if app.status == 'Cancelled' else 'clock') }}" aria-hidden="true"></i>{{ app.status }}</span></td></tr>{% endfor %}</tbody></table></div></div>
+                {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="calendar-x"></i></div><h2>No visits</h2><p>No visit records for this patient yet.</p></div>{% endif %}
             </div>
         </div>
-    </div>
-    <div class="md-stack">
-        <div class="md-card"><div class="md-card-head"><h5><i data-lucide="id-card"></i>At a glance</h5></div>
-            <div class="md-card-body">
-                <div class="md-cluster" style="gap:0.5rem;margin-bottom:0.9rem">
-                    <span class="md-badge md-badge--sched">{{ appointments|length }} visits</span>
-                    <span class="md-badge md-badge--done">{{ prescriptions|length }} scripts</span>
-                </div>
-                <p style="margin-bottom:0.4rem"><strong>Contact:</strong> {{ patient.contact }}</p>
-                <p style="margin:0"><strong>Address:</strong> {{ patient.address or '—' }}</p>
-            </div></div>
-        <div class="md-card"><div class="md-card-head"><h5><i data-lucide="history"></i>Visit timeline</h5></div>
-            <div class="md-card-body">
-                {% if appointments %}<div class="md-timeline">{% for app in appointments[:5] %}
-                <div class="md-timeline-item"><span class="md-timeline-dot">{{ '%02d' % loop.index }}</span>
-                    <div style="flex:1;min-width:0"><strong>{{ app.date }}</strong><div class="md-caption tnum">{{ app.time_slot }} · Dr. {{ app.doctor_name }}</div></div>
-                    <span class="md-badge md-badge--{{ 'done' if app.status == 'Completed' else ('cancel' if app.status == 'Cancelled' else 'sched') }}"><i data-lucide="{{ 'check' if app.status == 'Completed' else ('x' if app.status == 'Cancelled' else 'clock') }}" aria-hidden="true"></i>{{ app.status }}</span>
-                </div>{% endfor %}</div>
-                {% else %}<div class="md-empty" style="padding:1.5rem"><p style="margin:0">No visits yet.</p></div>{% endif %}
-            </div></div>
     </div>
 </div>
 {% endblock %}

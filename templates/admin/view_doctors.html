@@ -1,48 +1,44 @@
 {% extends "base.html" %}
+{% from 'components/pagination.html' import clear_filters with context %}
 {% block title %}Doctors{% endblock %}
 {% block page_title %}Doctors{% endblock %}
 {% block crumbs %}registry · doctors{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Roster · REG/B</p><h2 class="md-h2">Doctors <span class="md-count-tag">· {{ doctors|length }}{% if search_query %} of {{ doctors_total }}{% endif %} added</span></h2><p class="md-sub">Profiles, logins and weekly hours.</p></div>
-    <a href="{{ url_for('add_doctor') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>Add new doctor</a>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><h1 class="md-h2">Doctors <span class="md-count-tag">· {{ pagers[0].total if pagers else doctors|length }}{% if search_query %} of {{ doctors_total }}{% endif %} added</span></h1><p class="md-sub">Profiles, logins and weekly hours.</p></div>
+    <a href="{{ context_link('admin.add_doctor') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>Add new doctor</a>
 </div></div>
-<div class="md-card"><div class="md-card-body">
-    <form class="md-toolbar" method="GET" action="{{ url_for('view_doctors') }}" role="search">
-        <div class="md-search-wrap"><div class="md-field"><label for="q">Search roster</label><input type="search" id="q" name="search" placeholder="Name or specialty — e.g. “ortho”" value="{{ search_query }}"></div><button class="md-btn md-btn--filled" type="submit"><i data-lucide="search"></i>Search</button>{% if search_query %}<a href="{{ url_for('view_doctors') }}" class="md-btn md-btn--light">Clear</a>{% endif %}</div>
+<div class="md-card md-collection md-collection--doctors"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('admin.view_doctors') }}" role="search">
+        {{ search_state() }}
+        <div class="md-search-wrap"><div class="md-field"><label for="q">Search roster</label><input type="search" id="q" name="search" placeholder="Name or specialty — e.g. “ortho”" value="{{ search_query }}"></div><button class="md-btn md-btn--filled" type="submit"><i data-lucide="search"></i>Search</button>{% if search_query %}{{ clear_filters(['search'],'Clear') }}{% endif %}</div>
     </form>
-    {% if doctors %}<div class="md-doctor-grid">{% for doctor in doctors %}
-        <article class="md-doctor" aria-label="Dr. {{ doctor.name }}">
-            <div class="md-doctor-photo-cell">
-                {% if doctor.image_path %}<img src="{{ url_for('static', filename=doctor.image_path) }}" class="md-doctor-photo" alt="Portrait of {{ doctor.name }}" loading="lazy">{% else %}<div class="md-doctor-photo md-doctor-photo--placeholder" aria-hidden="true"><i data-lucide="stethoscope"></i></div>{% endif %}
-            </div>
-            <div class="md-doctor-main">
-                <p class="md-doctor-name">{{ doctor.name }}</p>
-                <span class="md-doctor-spec">{{ doctor.specialization }}</span>
-                <p class="md-doctor-meta"><i data-lucide="briefcase"></i><span class="md-mono-nums">{{ doctor.experience or 0 }} YRS</span><i data-lucide="phone"></i>{{ doctor.contact or '—' }}</p>
-                <p style="margin-top:0.5rem">{% if doctor.username %}<span class="md-badge md-badge--done"><i data-lucide="check" aria-hidden="true"></i>Login live</span>{% else %}<span class="md-badge md-badge--sched"><i data-lucide="clock" aria-hidden="true"></i>No login yet</span>{% endif %}</p>
-                <div class="md-doctor-actions">
-                    <a href="{{ url_for('set_doctor_credentials', doctor_id=doctor.id) }}" class="md-btn md-btn--outlined md-btn--sm" title="{% if doctor.username %}Edit login{% else %}Create login{% endif %}"><i data-lucide="key-round"></i>{% if doctor.username %}Access{% else %}Invite{% endif %}</a>
-                    <a href="{{ url_for('set_doctor_slots', doctor_id=doctor.id) }}" class="md-btn md-btn--outlined md-btn--sm" title="Weekly hours"><i data-lucide="clock"></i>Hours</a>
-                    <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="delDoc{{ doctor.id }}" title="Remove doctor" aria-label="Remove {{ doctor.name }}"><i data-lucide="trash-2"></i></button>
-                </div>
-            </div>
-            <div class="md-doctor-stub">
-                <div class="md-stub-fee">₹{{ "%.0f"|format(doctor.consultation_fee or 0) }}<small>FEE / VISIT</small></div>
-                <div class="md-doctor-actions">
-                    <a href="{{ url_for('schedule_appointment') }}?doctor_id={{ doctor.id }}" class="md-btn md-btn--filled md-btn--sm md-full" title="Book with this doctor"><i data-lucide="calendar-plus"></i>Book</a>
-                </div>
-            </div>
-        </article>
-    {% endfor %}</div>
-    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="stethoscope"></i></div><h5>Roster is empty</h5><p>{% if search_query %}Nothing found for that search — try fewer letters.{% else %}Add your first doctor to open the appointment book.{% endif %}</p><a href="{{ url_for('add_doctor') }}" class="md-btn md-btn--filled md-btn--sm">Add new doctor</a></div>{% endif %}
+    {{ sort_controls() }}
+    {% if pagers %}{{ pager_controls(pagers[0], 'Doctors',position='top') }}{% endif %}
+{% if doctors %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards><caption class="md-sr-only">Doctor roster: specialty, fee, access and booking</caption>
+        <thead><tr><th scope="col"{% if request.args.get('sort')=='name' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('name','Doctor') }}</th><th scope="col"{% if request.args.get('sort')=='specialization' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('specialization','Specialty') }}</th><th scope="col" class="numeric">Visit fee</th><th scope="col">Login</th><th scope="col" class="text-right">Actions</th></tr></thead>
+        <tbody>{% for doctor in doctors %}<tr>
+            <td class="no-label"><span class="md-person">
+                {% if doctor.image_path %}<img src="{{ image_url(doctor.image_path) }}" class="md-roster-photo" alt="" loading="lazy">{% else %}<span class="md-avatar avatar-sm" aria-hidden="true">{{ doctor.name[0]|upper }}</span>{% endif %}
+                <span><strong>{{ doctor.name }}</strong>{% if doctor.experience or doctor.contact %}<small class="md-roster-meta">{% if doctor.experience %}{{ doctor.experience }} years{% endif %}{% if doctor.experience and doctor.contact %} · {% endif %}{{ doctor.contact or '' }}</small>{% endif %}</span>
+            </span></td>
+            <td>{{ doctor.specialization }}</td>
+            <td class="md-mono-nums numeric">₹{{ '%.2f'|format(doctor.consultation_fee_cents|from_minor) }}</td>
+            <td><a class="md-access-link" href="{{ context_link('admin.set_doctor_credentials',doctor_id=doctor.id) }}" aria-label="Manage login for {{ doctor.name }}: {{ 'access disabled' if not doctor.active else ('login enabled' if doctor.username else 'no login yet') }}">{% if not doctor.active %}<span class="md-badge md-badge--neutral"><i data-lucide="lock" aria-hidden="true"></i>Disabled</span>{% elif doctor.username %}<span class="md-badge md-badge--done"><i data-lucide="key-round" aria-hidden="true"></i>Enabled</span>{% else %}<span class="md-badge md-badge--sched"><i data-lucide="user-plus" aria-hidden="true"></i>Set up login</span>{% endif %}<i data-lucide="chevron-right" aria-hidden="true"></i></a></td>
+            <td class="text-right"><span class="md-row-actions">
+                <a href="{{ context_link('admin.set_doctor_slots',doctor_id=doctor.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Weekly hours for {{ doctor.name }}"><i data-lucide="clock"></i>Hours</a>
+                {% if doctor.active %}<a href="{{ context_link('admin.schedule_appointment',doctor_id=doctor.id) }}" class="md-btn md-btn--filled md-btn--sm" aria-label="Book visit with {{ doctor.name }}"><i data-lucide="calendar-plus"></i>Book</a>{% else %}<span class="md-caption">Booking disabled</span>{% endif %}
+                <span class="md-menu-wrap"><button class="md-icon-btn md-icon-btn--sm" type="button" data-md-menu="doctorMenu{{ doctor.id }}" aria-label="More actions for {{ doctor.name }}" aria-expanded="false"><i data-lucide="ellipsis-vertical"></i></button><div class="md-menu" id="doctorMenu{{ doctor.id }}" role="menu" aria-label="Doctor actions"><button class="md-menu-item" type="button" role="menuitem" data-md-open="delDoc{{ doctor.id }}"><i data-lucide="trash-2"></i>Remove doctor</button></div></span>
+            </span></td>
+        </tr>{% endfor %}</tbody>
+    </table></div></div>
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="stethoscope"></i></div><h2>{{ 'No doctors found' if search_query else 'No doctors yet' }}</h2><p>{% if search_query %}Try a different name or specialty, or clear the search.{% else %}Use Add new doctor above to start your care team.{% endif %}</p></div>{% endif %}
 </div></div>
 {% for doctor in doctors %}
 <div class="md-dialog-backdrop" data-md-dialog="delDoc{{ doctor.id }}" role="dialog" aria-modal="true" aria-label="Remove Dr. {{ doctor.name }}"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">Remove Dr. {{ doctor.name }}?</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <div class="md-dialog-body"><div class="md-banner-inline md-banner-inline--warning"><i data-lucide="triangle-alert"></i><span>Doctors with visits on record cannot be removed — clear those first.</span></div><p class="md-caption mt-1">This permanently removes <strong>Dr. {{ doctor.name }}</strong> ({{ doctor.specialization }}). Future bookings will be blocked. Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
-    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ url_for('delete_doctor', doctor_id=doctor.id) }}" data-confirm="Remove Dr. {{ doctor.name }}? This cannot be undone." class="mt-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Remove</button></form></div>
+    <div class="md-dialog-head"><h2 class="md-dialog-title">Remove Dr. {{ doctor.name }}?</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-body"><div class="md-banner-inline md-banner-inline--warning"><i data-lucide="triangle-alert"></i><span>Doctors with visits on record cannot be removed. Disable their account to preserve clinical history.</span></div><p class="md-caption mt-1">This permanently removes <strong>Dr. {{ doctor.name }}</strong> ({{ doctor.specialization }}). Future bookings will be blocked. Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
+    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ context_link('admin.delete_doctor', doctor_id=doctor.id) }}" class="mt-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Remove</button></form></div>
 </div></div>
 {% endfor %}
-<a href="{{ url_for('add_doctor') }}" class="md-fab" aria-label="Add doctor"><i data-lucide="plus"></i>Doctor</a>
 {% endblock %}

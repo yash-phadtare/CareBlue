@@ -1,7 +1,12 @@
 __pycache__/
 *.pyc
-instance/*.db
-data/*.db
+instance/
+data/
+tests/
+.github/
+.env
+.env.*
+!.env.example
 backups/
 .git/
 venv/

@@ -3,7 +3,7 @@
   'use strict';
 
   function refreshIcons() {
-    try { if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.5 } }); } catch (e) { /* noop */ }
+    try { if (window.lucide) lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); } catch (e) { /* noop */ }
   }
 
   /* ---------- Snackbar helper (replaces native alert) ---------- */
@@ -30,7 +30,7 @@
     el.appendChild(btn);
     stack.appendChild(el);
     refreshIcons();
-    setTimeout(function () { if (el.isConnected) dismissSnack(el); }, 6000);
+    if (type === 'success' || type === 'info') setTimeout(function () { if (el.isConnected) dismissSnack(el); }, 8000);
   }
   window.mdNotify = mdNotify;
 
@@ -44,6 +44,11 @@
     sb.classList.toggle('mobile-open', show);
     if (scrim) scrim.classList.toggle('show', show);
     if (btn) btn.setAttribute('aria-expanded', show ? 'true' : 'false');
+    const restoreFocus = !show && sb.contains(document.activeElement);
+    document.querySelector('.md-main')?.toggleAttribute('inert', show);
+    document.body.classList.toggle('drawer-open', show);
+    if (show) sb.querySelector('a,button')?.focus();
+    else if (restoreFocus) btn?.focus();
   };
 
   /* ---------- Collapsible rail (desktop, persisted) ---------- */
@@ -58,27 +63,51 @@
     document.querySelectorAll('.md-nav-link').forEach((a) => {
       const t = a.querySelector('.md-nav-text');
       if (t && !a.hasAttribute('data-label')) a.setAttribute('data-label', t.textContent.trim());
+      if (t && !a.hasAttribute('aria-label')) a.setAttribute('aria-label', t.textContent.trim());
     });
   }
 
   /* ---------- Slot selection (global, used by inline onclick) ---------- */
   window.selectSlot = function (element) {
     if (!element || element.classList.contains('booked') || element.disabled) return;
-    document.querySelectorAll('.md-slot').forEach((s) => { s.classList.remove('selected'); s.setAttribute('aria-selected', 'false'); });
+    document.querySelectorAll('.md-slot').forEach((s) => { s.classList.remove('selected'); s.setAttribute('aria-selected', 'false'); s.tabIndex = -1; });
     element.classList.add('selected');
     element.setAttribute('aria-selected', 'true');
+    element.tabIndex = 0;
     const hidden = document.getElementById('time_slot');
     if (hidden) {
       hidden.value = element.dataset.start || '';
       hidden.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    const btn = document.getElementById('submitBtn');
-    if (btn) btn.disabled = !hidden?.value;
-    if (typeof window.mdUpdateSteps === 'function') window.mdUpdateSteps();
+    document.querySelectorAll('.md-slot-grid').forEach(grid => {
+      if (!grid.contains(element)) {
+        const first=grid.querySelector('.md-slot:not(:disabled)');
+        if(first)first.tabIndex=0;
+      }
+    });
   };
 
   /* ---------- Dialogs with focus trap + restoration ---------- */
   let lastDialogTrigger = null;
+  const overlaySiblings = new WeakMap();
+  function isolateOverlay(root, show) {
+    if (show) {
+      const siblings = [];
+      let node = root;
+      while (node.parentElement) {
+        [...node.parentElement.children].forEach(sibling => {
+          if (sibling === node || sibling.matches('script,style,.md-snack-stack')) return;
+          siblings.push([sibling, sibling.inert]); sibling.inert = true;
+        });
+        node = node.parentElement;
+        if (node === document.body) break;
+      }
+      overlaySiblings.set(root, siblings);
+    } else {
+      (overlaySiblings.get(root) || []).forEach(([node, previous]) => node.inert = previous);
+      overlaySiblings.delete(root);
+    }
+  }
   function focusables(root) {
     return [...root.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')]
       .filter((el) => el.offsetParent !== null || el === document.activeElement);
@@ -86,22 +115,26 @@
   function openDialog(id, trigger) {
     const bd = document.querySelector(`[data-md-dialog="${CSS.escape(id)}"]`);
     if (!bd) return;
+    window.toggleSidebar(false);
     if (trigger) lastDialogTrigger = trigger;
     else if (document.activeElement instanceof HTMLElement) lastDialogTrigger = document.activeElement;
     bd.classList.add('open');
+    isolateOverlay(bd, true);
     document.body.style.overflow = 'hidden';
     const dlg = bd.querySelector('.md-dialog');
     if (dlg) {
       dlg.setAttribute('tabindex', '-1');
       setTimeout(() => {
         const f = focusables(dlg);
-        (f[0] || dlg).focus({ preventScroll: true });
+        (f.find(el => el.matches('input,select,textarea')) || f[0] || dlg).focus({ preventScroll: true });
       }, 30);
     }
   }
   function closeDialog(bd) {
     if (!bd) return;
+    if (bd.querySelector('form[data-submitting="1"]')) return;
     bd.classList.remove('open');
+    isolateOverlay(bd, false);
     if (!document.querySelector('.md-palette-backdrop.open')) document.body.style.overflow = '';
     if (lastDialogTrigger && document.contains(lastDialogTrigger)) {
       lastDialogTrigger.focus({ preventScroll: true });
@@ -111,7 +144,7 @@
   window.mdOpenDialog = openDialog;
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab') return;
-    const open = document.querySelector('.md-dialog-backdrop.open .md-dialog');
+    const open = document.querySelector('.md-dialog-backdrop.open .md-dialog, .md-palette-backdrop.open .md-palette, .md-drawer.mobile-open');
     if (!open) return;
     const f = focusables(open);
     if (!f.length) { e.preventDefault(); open.focus(); return; }
@@ -137,6 +170,28 @@
       }
     });
   }
+  const menuAnchors = new WeakMap();
+  function positionMenu(menu, trigger) {
+    const rect = trigger.getBoundingClientRect();
+    menuAnchors.set(menu, {trigger, x:rect.x, y:rect.y});
+    menu.style.position = 'fixed';
+    menu.style.right = 'auto';
+    const width = menu.offsetWidth, height = menu.offsetHeight;
+    const left = Math.max(16, Math.min(rect.right - width, window.innerWidth - width - 16));
+    const below = rect.bottom + 8;
+    const top = below + height <= window.innerHeight - 16 ? below : Math.max(16, rect.top - height - 8);
+    menu.style.left = left + 'px'; menu.style.top = top + 'px';
+  }
+  window.addEventListener('resize', () => { closeAllMenus(null); if (window.innerWidth >= 1024) window.toggleSidebar(false); });
+  document.addEventListener('scroll', e => {
+    if (e.target.closest?.('.md-menu')) return;
+    document.querySelectorAll('.md-menu.open').forEach(menu => {
+      const anchor = menuAnchors.get(menu);
+      if (!anchor) return;
+      const rect = anchor.trigger.getBoundingClientRect();
+      if (Math.abs(rect.x-anchor.x)>1 || Math.abs(rect.y-anchor.y)>1) closeAllMenus(null);
+    });
+  }, true);
 
   /* ---------- Session-timeout warning + keep-alive ---------- */
   (function initSessionWatchdog() {
@@ -157,10 +212,11 @@
       stay.textContent = 'Stay signed in';
       stay.addEventListener('click', async () => {
         try {
-          const res = await fetch('/session/refresh');
+          const res = await fetch('/session/refresh', {method:'POST', headers:{'X-CSRF-Token':document.querySelector('meta[name="csrf-token"]').content}});
           if (res.ok) { dismissSnack(el); arm(); return; }
         } catch (e) { /* noop */ }
-        window.location.href = '/login';
+        dismissSnack(el);
+        window.dispatchEvent(new Event('careblue:session-expired'));
       });
       el.appendChild(stay);
       const dis = document.createElement('button');
@@ -168,19 +224,15 @@
       dis.addEventListener('click', () => dismissSnack(el));
       el.appendChild(dis);
       (stack || document.body).appendChild(el);
-      if (window.lucide) { try { lucide.createIcons({ attrs: { 'stroke-width': 1.5 } }); } catch (e) {} }
+      if (window.lucide) { try { lucide.createIcons({ attrs: { 'stroke-width': 1.75 } }); } catch (e) {} }
     }
     function arm() {
       warned = false;
       clearTimeout(arm.t);
       arm.t = setTimeout(showWarning, Math.max((lifetimeSec - WARN_BEFORE) * 1000, 60000));
     }
+    window.addEventListener('careblue:session-restored', arm);
     arm();
-    ['click', 'keydown'].forEach((ev) => document.addEventListener(ev, () => {
-      if (warned) return;
-      clearTimeout(arm.t);
-      arm.t = setTimeout(showWarning, Math.max((lifetimeSec - WARN_BEFORE) * 1000, 60000));
-    }, { passive: true }));
   })();
   /* ---------- Command palette ---------- */
   const paletteActions = [];
@@ -200,7 +252,7 @@
   function patientSearchURL() {
     const doctorLink = document.querySelector('.md-nav-link[href*="/doctor/patients"]');
     if (doctorLink) return '/doctor/patients?search=';
-    return '/admin/view_patients?search=';
+    return document.querySelector('.md-nav-link[href*="/admin/view_patients"]') ? '/admin/view_patients?search=' : null;
   }
   function renderPalette(filter) {
     const list = document.getElementById('paletteList');
@@ -209,16 +261,23 @@
     const hits = paletteActions.filter((a) => !q || a.label.toLowerCase().includes(q)).slice(0, 8);
     paletteIndex = 0;
     list.innerHTML = hits.map((a, i) =>
-      `<button type="button" class="md-palette-item${i === 0 ? ' active' : ''}" role="option" aria-selected="${i === 0}" data-href="${a.href}"><i data-lucide="arrow-right"></i><span>${a.label.replace(/</g, '&lt;')}</span></button>`
-    ).join('') || `<div class="md-caption" style="padding:0.8rem">No matching page — press Enter to search patients.</div>`;
+      `<button type="button" id="palette-option-${i}" class="md-palette-item${i === 0 ? ' active' : ''}" role="option" aria-selected="${i === 0}" data-href="${a.href}"><i data-lucide="arrow-right"></i><span>${a.label.replace(/</g, '&lt;')}</span></button>`
+    ).join('') || `<div class="md-caption palette-empty">No matching page.${patientSearchURL() ? ' Press Enter to search patients.' : ' Try another page name.'}</div>`;
     refreshIcons();
+    const input = document.getElementById('paletteInput');
+    if (hits.length) input?.setAttribute('aria-activedescendant', 'palette-option-0');
+    else input?.removeAttribute('aria-activedescendant');
     list.querySelectorAll('.md-palette-item').forEach((b) => b.addEventListener('click', () => { window.location.href = b.dataset.href; }));
   }
+  let lastPaletteTrigger;
   function openPalette() {
+    lastPaletteTrigger = document.activeElement;
     collectActions();
     const bd = document.getElementById('paletteBackdrop');
     if (!bd) return;
+    window.toggleSidebar(false);
     bd.classList.add('open');
+    isolateOverlay(bd, true);
     document.body.style.overflow = 'hidden';
     const input = document.getElementById('paletteInput');
     input.value = '';
@@ -228,7 +287,10 @@
   function closePalette() {
     const bd = document.getElementById('paletteBackdrop');
     if (!bd) return;
+    const wasOpen = bd.classList.contains('open');
     bd.classList.remove('open');
+    isolateOverlay(bd, false);
+    if (wasOpen) lastPaletteTrigger?.focus();
     if (!document.querySelector('.md-dialog-backdrop.open')) document.body.style.overflow = '';
   }
   function movePalette(dir) {
@@ -237,6 +299,7 @@
     paletteIndex = (paletteIndex + dir + items.length) % items.length;
     items.forEach((b, i) => { b.classList.toggle('active', i === paletteIndex); b.setAttribute('aria-selected', i === paletteIndex ? 'true' : 'false'); });
     items[paletteIndex].scrollIntoView({ block: 'nearest' });
+    document.getElementById('paletteInput')?.setAttribute('aria-activedescendant', items[paletteIndex].id);
   }
 
   /* ---------- Tabs ---------- */
@@ -254,6 +317,8 @@
           if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
             e.preventDefault();
             select(btns[(i + (e.key === 'ArrowRight' ? 1 : btns.length - 1)) % btns.length], true);
+          } else if (e.key === 'Home' || e.key === 'End') {
+            e.preventDefault();select(btns[e.key==='Home'?0:btns.length-1],true);
           }
         });
       });
@@ -264,17 +329,33 @@
   /* ---------- Mobile card tables: copy header text to data-label ---------- */
   function initCardTables(scope) {
     scope.querySelectorAll('table.md-table').forEach((table) => {
-      table.classList.add('md-table--cards');
+      if (table.hasAttribute('data-mobile-cards')) table.classList.add('md-table--cards');
+      table.setAttribute('role', 'table');
+      table.querySelectorAll('thead,tbody').forEach(group => group.setAttribute('role','rowgroup'));
+      table.querySelectorAll('tr').forEach(row => row.setAttribute('role','row'));
+      table.querySelectorAll('th').forEach(cell => cell.setAttribute('role','columnheader'));
       const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+      table.querySelectorAll('thead th').forEach((th, i) => {
+        th.dataset.label = heads[i];
+        if (heads[i] === '#') th.classList.add('md-index-cell');
+      });
       table.querySelectorAll('tbody tr').forEach((tr) => {
         [...tr.children].forEach((td, i) => {
+          td.setAttribute('role','cell');
+          if (heads[i] === '#') td.classList.add('md-index-cell');
+          if (/^(Patient|Medicine|Item|Doctor|When|Actions|Open|Timeline|Detail|Hospital|Workspace|Ward \/ bed)$/i.test(heads[i] || '') || td.colSpan > 1) td.classList.add('md-card-cell--wide');
           if (!td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i] || '');
+          if (table.hasAttribute('data-mobile-cards') && td.colSpan === 1 && heads[i]) {
+            const label = document.createElement('span'); label.className = 'md-cell-label';
+            label.setAttribute('aria-hidden','true'); label.textContent = td.dataset.label;
+            td.prepend(label);
+          }
         });
       });
       if (!table.querySelector('caption')) {
         const cap = document.createElement('caption');
         cap.className = 'md-sr-only';
-        cap.textContent = 'Data table';
+        cap.textContent = table.closest('.md-card')?.querySelector('.md-card-head h2')?.textContent.trim() || document.querySelector('h1')?.textContent.trim() || 'Records';
         table.prepend(cap);
       }
     });
@@ -346,12 +427,27 @@
     const err = ensureErrorText(field);
     const ok = field.checkValidity();
     if (wrap) wrap.classList.toggle('md-field--invalid', !ok);
+    field.setAttribute('aria-invalid', String(!ok));
+    const proxy = document.getElementById(field.dataset.focusTarget);
+    proxy?.setAttribute('aria-invalid', String(!ok));
+    if (err) {
+      err.id = err.id || (field.id || field.name) + '__error';
+      const ids = new Set((field.getAttribute('aria-describedby') || '').split(' ').filter(Boolean));
+      ids.add(err.id); field.setAttribute('aria-describedby', [...ids].join(' '));
+      proxy?.setAttribute('aria-describedby', [...ids].join(' '));
+    }
     if (err) err.textContent = ok ? '' : (field.validationMessage || `${fieldLabel(field)} is required.`);
     return ok;
   }
+  function revealField(field) {
+    let details=field.closest('details');
+    while(details){details.open=true;details=details.parentElement?.closest('details');}
+    (document.getElementById(field.dataset.focusTarget)||field).focus({preventScroll:false});
+  }
+  let staticFieldNumber = 0;
   function initValidation(scope) {
     scope.querySelectorAll('form').forEach((form) => {
-      if (form.method.toUpperCase() === 'GET' || form.querySelector('[data-no-validate]')) return;
+      if ((form.getAttribute('method') || 'get').toUpperCase() === 'GET' || form.querySelector('[data-no-validate]')) return;
       // Mark required fields + live validation
       form.querySelectorAll('[required]').forEach((f) => {
         const wrap = f.closest('.md-field');
@@ -367,6 +463,17 @@
         f.addEventListener('blur', () => { if (form.classList.contains('was-validated')) validateField(f); });
         f.addEventListener('input', () => { if (form.classList.contains('was-validated')) validateField(f); });
         f.addEventListener('change', () => { if (form.classList.contains('was-validated')) validateField(f); });
+      });
+      form.querySelectorAll('.md-field').forEach((wrap, i) => {
+        const label = wrap.querySelector('label'); const field = wrap.querySelector('input,select,textarea');
+        if (label && field) { field.id = field.id || 'field_' + (field.name || i) + '_' + (++staticFieldNumber); label.htmlFor = field.dataset.focusTarget || field.id; }
+        const help = wrap.querySelector('.md-help');
+        if (help && field) {
+          help.id = help.id || field.id + '__help';
+          const ids = new Set((field.getAttribute('aria-describedby') || '').split(' ').filter(Boolean));
+          ids.add(help.id); field.setAttribute('aria-describedby', [...ids].join(' '));
+          document.getElementById(field.dataset.focusTarget)?.setAttribute('aria-describedby', [...ids].join(' '));
+        }
       });
       form.setAttribute('novalidate', '');
       form.addEventListener('submit', (e) => {
@@ -388,15 +495,14 @@
             const a = document.createElement('a');
             a.href = '#';
             a.textContent = `${fieldLabel(f)} — ${f.validationMessage || 'required'}`;
-            a.addEventListener('click', (ev) => { ev.preventDefault(); f.focus(); });
+            a.addEventListener('click', (ev) => { ev.preventDefault(); revealField(f); });
             li.appendChild(a);
             ul.appendChild(li);
           });
           summary.appendChild(ul);
           form.prepend(summary);
           summary.focus({ preventScroll: false });
-          invalid[0].focus({ preventScroll: false });
-          mdNotify('Please fix the highlighted fields.', 'danger');
+          revealField(invalid[0]);
         }
       });
     });
@@ -405,94 +511,152 @@
   /* ---------- Searchable select enhancement (patient/doctor/visit) ---------- */
   function initSearchableSelects(scope) {
     scope.querySelectorAll('select[data-searchable], #patient_id, #doctor_id, #appointment_id').forEach((sel) => {
-      if (sel.dataset.enhanced || sel.options.length < 4) return;
+      if (sel.dataset.enhanced) return;
       sel.dataset.enhanced = '1';
-      sel.setAttribute('aria-label', sel.getAttribute('aria-label') || 'Type to filter options');
       const wrap = document.createElement('div');
       wrap.className = 'md-picker';
       sel.parentElement.insertBefore(wrap, sel);
-      wrap.appendChild(sel);
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = (sel.id || sel.name) + '__search';
+      input.autocomplete = 'off';
+      input.setAttribute('role', 'combobox');
+      input.setAttribute('aria-autocomplete', 'list');
+      input.setAttribute('aria-expanded', 'false');
+      input.setAttribute('aria-required', String(sel.required));
+      input.placeholder = sel.dataset.searchPlaceholder || (sel.id === 'doctor_id' ? 'Name or specialty…' : sel.id === 'patient_id' ? 'Name or phone number…' : 'Search…');
+      sel.dataset.focusTarget = input.id;
+      const label = sel.id && scope.querySelector('label[for="' + CSS.escape(sel.id) + '"]');
+      if (label) label.htmlFor = input.id;
+      else input.setAttribute('aria-label', sel.getAttribute('aria-label') || sel.name);
+      sel.classList.add('md-sr-only');
+      sel.tabIndex = -1;
+      sel.setAttribute('aria-hidden', 'true');
+      wrap.append(input, sel);
       const list = document.createElement('div');
+      list.id = input.id + '__options';
       list.className = 'md-picker-list';
       list.setAttribute('role', 'listbox');
-      wrap.appendChild(list);
-      let items = [];
-      function render(filter) {
-        const q = (filter || '').toLowerCase();
-        list.innerHTML = '';
-        items = [...sel.options].filter((o) => !q || o.text.toLowerCase().includes(q)).slice(0, 30);
-        if (!items.length) {
-          list.innerHTML = '<div class="md-caption" style="padding:0.6rem 0.8rem">No matches.</div>';
-          return;
-        }
-        items.forEach((o, i) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.textContent = o.text;
-          b.setAttribute('role', 'option');
-          if (o.value === sel.value) b.classList.add('active');
-          b.addEventListener('click', () => {
-            sel.value = o.value;
-            sel.dispatchEvent(new Event('change', { bubbles: true }));
-            list.classList.remove('open');
-          });
-          list.appendChild(b);
-        });
+      input.setAttribute('aria-controls', list.id);
+      wrap.append(list);
+      let options = [], active = -1, timer, revision = 0;
+      const sources = {patient_id: 'patients', doctor_id: 'doctors', appointment_id: 'visits'};
+      const source = ['patients','doctors','visits'].includes(sel.dataset.searchSource) ? sel.dataset.searchSource : sources[sel.id];
+      function sync() { input.value = sel.value ? (sel.selectedOptions[0]?.text || '') : ''; }
+      function close() {
+        list.classList.remove('open');
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
       }
-      render('');
-      sel.addEventListener('focus', () => { render(''); list.classList.add('open'); });
-      sel.addEventListener('keydown', (e) => {
-        // Typing filters the dropdown like a search
-        if (e.key.length === 1) {
-          list.classList.add('open');
-          const q = (sel.dataset.q || '') + e.key;
-          sel.dataset.q = q;
-          clearTimeout(sel._qt);
-          sel._qt = setTimeout(() => { sel.dataset.q = ''; }, 800);
-          render(q);
-        } else if (e.key === 'Escape') {
-          list.classList.remove('open');
+      function choose(option) {
+        if(sel.disabled)return;
+        clearTimeout(timer); ++revision; input.removeAttribute('aria-busy');
+        sel.value = option.value;
+        sync(); close();
+        sel.dispatchEvent(new Event('change', {bubbles:true}));
+      }
+      function highlight(index) {
+        active = Math.max(0, Math.min(index, options.length - 1));
+        [...list.children].forEach((node, i) => node.setAttribute('aria-selected', String(i === active)));
+        if (options.length) {
+          input.setAttribute('aria-activedescendant', list.children[active].id);
+          list.children[active].scrollIntoView({block:'nearest'});
         }
+      }
+      function render(q, remoteOptions, pending=false) {
+        options = remoteOptions || [...sel.options].filter(o => !o.disabled && (!q || [o.text,o.dataset.searchDetail||''].join(' ').toLowerCase().includes(q.toLowerCase())));
+        list.replaceChildren();
+        options.forEach((option, i) => {
+          const node = document.createElement('div');
+          node.id = list.id + '_' + i;
+          node.setAttribute('role', 'option');
+          node.setAttribute('aria-selected', 'false');
+          const primary=document.createElement('span');primary.textContent=option.text;node.append(primary);
+          if(option.dataset.searchDetail){const detail=document.createElement('small');detail.className='md-picker-detail';detail.textContent=option.dataset.searchDetail;node.append(detail);}
+          node.addEventListener('pointerdown', e => { e.preventDefault(); choose(option); });
+          list.append(node);
+        });
+        if (!options.length) {
+          const empty = document.createElement('p');
+          empty.textContent = pending ? 'Searching…' : 'No matches. Try another search.';
+          empty.setAttribute('role','status');
+          list.append(empty);
+        }
+        active = -1;
+        list.classList.add('open');
+        input.setAttribute('aria-expanded', 'true');
+      }
+      async function search(q) {
+        const rev = ++revision;
+        if (!source) { render(q); return; }
+        input.setAttribute('aria-busy', 'true');
+        try {
+          const url = new URL('/admin/lookup/' + source, window.location.origin);
+          url.searchParams.set('q', q);
+          const patient = document.getElementById('patient_id');
+          if (source === 'visits' && patient?.value) url.searchParams.set('patient_id', patient.value);
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Search unavailable');
+          const rows = await res.json();
+          if (!Array.isArray(rows)) throw new Error('Invalid search results');
+          if (rev !== revision) return;
+          [...sel.options].filter(o => o.value && o.value !== sel.value).forEach(o => o.remove());
+          const matches=rows.map(row => {
+            const existing=[...sel.options].find(o=>o.value===String(row.id));
+            const option = existing || new Option(source === 'patients' ? row.label + ' · #' + row.id : row.label, String(row.id));
+            option.dataset.searchDetail=row.detail||'';
+            if (row.patient_id) option.dataset.patient = row.patient_id;
+            if (row.patient_name) option.dataset.patientName = row.patient_name;
+            if (row.fee_cents !== undefined) option.dataset.fee = row.fee_cents;
+            if(!existing)sel.add(option);
+            return option;
+          });
+          if(!q){const placeholder=[...sel.options].find(o=>!o.value);if(placeholder)matches.unshift(placeholder);}
+          render(q,matches);
+        } catch (error) {
+          if (rev === revision) { render(q); mdNotify('Search could not refresh. Retry when connected.', 'warning'); }
+        } finally { if (rev === revision) input.removeAttribute('aria-busy'); }
+      }
+      input.addEventListener('focus', () => search(''));
+      input.addEventListener('input', () => {
+        ++revision; // Invalidate a focus search before the debounced request starts.
+        clearTimeout(timer);
+        if (sel.value) { sel.value = ''; sel.dispatchEvent(new Event('change', {bubbles:true})); }
+        render(input.value,null,!!source);
+        timer = setTimeout(() => search(input.value), 180);
       });
-      document.addEventListener('click', (e) => { if (!wrap.contains(e.target)) list.classList.remove('open'); });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault(); if (!list.classList.contains('open')) render('');
+          highlight(active + (e.key === 'ArrowDown' ? 1 : -1));
+        } else if (e.key === 'Enter' && list.classList.contains('open')) {
+          e.preventDefault(); if (active >= 0 && options[active]) choose(options[active]);
+        } else if (e.key === 'Escape') { clearTimeout(timer); ++revision; input.removeAttribute('aria-busy'); close(); sync(); }
+        else if (e.key === 'Tab') { clearTimeout(timer); ++revision; input.removeAttribute('aria-busy'); close(); }
+      });
+      input.addEventListener('blur', () => { clearTimeout(timer); ++revision; input.removeAttribute('aria-busy'); setTimeout(() => { close(); sync(); }, 100); });
+      sel.addEventListener('change', () => { if (document.activeElement !== input) sync(); });
+      sync();
     });
-  }
-
-  /* ---------- Booking steps progress ---------- */
-  function initSteps() {
-    const steps = document.querySelector('.md-steps[data-steps]') || document.querySelector('.md-steps');
-    if (!steps || !document.getElementById('appointmentForm')) return;
-    const spans = [...steps.querySelectorAll('span')];
-    if (spans.length < 3) return;
-    spans.forEach((s) => s.classList.add('md-step'));
-    window.mdUpdateSteps = function () {
-      const p = !!document.getElementById('patient_id')?.value && !!document.getElementById('doctor_id')?.value;
-      const d = !!document.getElementById('date')?.value;
-      const t = !!document.getElementById('time_slot')?.value;
-      spans.forEach((s) => s.classList.remove('on', 'done'));
-      if (t) { spans[0].classList.add('done'); spans[1].classList.add('done'); spans[2].classList.add('on'); }
-      else if (d && p) { spans[0].classList.add('done'); spans[1].classList.add('done'); spans[2].classList.add('on'); spans[2].scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
-      else if (p) { spans[0].classList.add('done'); spans[1].classList.add('on'); }
-      else { spans[0].classList.add('on'); }
-    };
-    window.mdUpdateSteps();
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     refreshIcons();
     labelRailLinks();
     try {
-      if (localStorage.getItem('md-nav-collapsed') === '1' && window.innerWidth >= 992)
+      if (localStorage.getItem('md-nav-collapsed') === '1' && window.innerWidth >= 1024)
         document.body.classList.add('md-nav-collapsed');
     } catch (e) { /* noop */ }
 
     /* Snackbars: pause the auto-dismiss while hovered/focused, resume after */
     document.querySelectorAll('.md-snackbar').forEach((el) => {
-      let remaining = 6000;
+      const persistent = el.matches('.md-snackbar--danger,.md-snackbar--warning');
+      let remaining = 8000;
       let startedAt = Date.now();
-      let t = setTimeout(() => dismissSnack(el), remaining);
-      const pause = () => { clearTimeout(t); remaining -= Date.now() - startedAt; };
+      let t = persistent ? null : setTimeout(() => dismissSnack(el), remaining);
+      const pause = () => { if (persistent) return; clearTimeout(t); remaining -= Date.now() - startedAt; };
       const resume = () => {
+        if (persistent) return;
         clearTimeout(t);
         startedAt = Date.now();
         t = setTimeout(() => dismissSnack(el), Math.max(remaining, 1500));
@@ -511,7 +675,7 @@
         const menu = document.getElementById(btn.getAttribute('data-md-menu'));
         const willOpen = menu && !menu.classList.contains('open');
         closeAllMenus(menu);
-        if (menu && willOpen) { menu.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+        if (menu && willOpen) { menu.classList.add('open'); positionMenu(menu, btn); btn.setAttribute('aria-expanded', 'true'); }
         else btn.setAttribute('aria-expanded', 'false');
       });
     });
@@ -545,7 +709,8 @@
             const active = document.querySelector('#paletteList .md-palette-item.active') || items[0];
             window.location.href = active.dataset.href;
           } else if (input.value.trim() !== '') {
-            window.location.href = patientSearchURL() + encodeURIComponent(input.value.trim());
+            const patientURL = patientSearchURL();
+            if (patientURL) window.location.href = patientURL + encodeURIComponent(input.value.trim());
           }
         }
       });
@@ -562,12 +727,12 @@
 
     /* Destructive / clinical confirmations: data-confirm="message" */
     document.querySelectorAll('form[data-confirm], button[data-confirm], a[data-confirm]').forEach((el) => {
+      if (el.closest('.md-dialog-backdrop')) return; // The dialog already asks for explicit confirmation.
       const msg = el.getAttribute('data-confirm');
       if (el.tagName === 'FORM') {
         el.addEventListener('submit', (e) => {
           if (el.dataset.confirmed === '1') { delete el.dataset.confirmed; return; }
           e.preventDefault();
-          mdNotify(msg || 'Please confirm this action.', 'warning');
           if (window.confirm(msg || 'Are you sure?')) { el.dataset.confirmed = '1'; el.requestSubmit(); }
         });
       } else {
@@ -583,6 +748,35 @@
       btn.setAttribute('data-tip', btn.getAttribute('title'));
       btn.removeAttribute('title');
     });
+    document.querySelectorAll('.md-icon-btn[aria-label]:not([data-tip])').forEach(btn => btn.dataset.tip = btn.getAttribute('aria-label'));
+    const tip = document.createElement('div');
+    tip.className = 'md-tooltip'; tip.id = 'controlTooltip'; tip.setAttribute('role', 'tooltip'); tip.hidden = true;
+    document.body.append(tip);
+    let tipOwner = null;
+    function hideTip(control) {
+      if (control && control !== tipOwner) return;
+      document.querySelectorAll('[aria-describedby="controlTooltip"]').forEach(el => el.removeAttribute('aria-describedby'));
+      tipOwner = null;
+      tip.hidden = true;
+    }
+    document.querySelectorAll('[data-tip],.md-nav-link').forEach(control => {
+      const showTip = () => {
+        if (control.matches('.md-nav-link') && !document.body.classList.contains('md-nav-collapsed')) return;
+        hideTip();
+        tipOwner = control;
+        tip.textContent = control.dataset.tip || control.dataset.label; tip.hidden = false;
+        const box = control.getBoundingClientRect();
+        const left = control.matches('.md-nav-link') ? box.right + 12 : box.left + box.width / 2 - tip.offsetWidth / 2;
+        tip.style.left = Math.max(8, Math.min(left, innerWidth - tip.offsetWidth - 8)) + 'px';
+        tip.style.top = Math.min(innerHeight - tip.offsetHeight - 8, box.bottom + 8) + 'px';
+        control.setAttribute('aria-describedby', tip.id);
+      };
+      control.addEventListener('mouseenter', showTip); control.addEventListener('focus', showTip);
+      control.addEventListener('mouseleave', () => { if (document.activeElement !== control) hideTip(control); });
+      control.addEventListener('blur', () => hideTip(control)); control.addEventListener('click', () => hideTip(control));
+    });
+    window.addEventListener('blur', () => hideTip());
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTip(); });
 
     /* Password toggles */
     document.querySelectorAll('[data-pass-toggle]').forEach((btn) => {
@@ -601,6 +795,15 @@
       });
     });
 
+    document.addEventListener('click', e => {
+      const button = e.target.closest('[data-action], [data-slot-select]');
+      if (!button) return;
+      const actions = {'print': () => window.print(), 'reload': () => location.reload(),
+        'back': () => history.back(), 'sidebar': () => toggleSidebar(), 'close-sidebar': () => toggleSidebar(false),
+        'collapse-nav': () => toggleNavCollapse(), 'expand-nav': () => toggleNavCollapse(false)};
+      if (button.hasAttribute('data-slot-select')) selectSlot(button);
+      else actions[button.dataset.action]?.();
+    });
     /* Slot keyboard activation */
     document.addEventListener('keydown', (e) => {
       const t = e.target;
@@ -608,12 +811,20 @@
         e.preventDefault();
         window.selectSlot(t);
       }
+      if (t?.classList?.contains('md-slot') && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
+        e.preventDefault();
+        const slots = [...t.closest('.md-slot-grid').querySelectorAll('.md-slot:not(:disabled)')];
+        const index = slots.indexOf(t);
+        const columns = getComputedStyle(t.parentElement).gridTemplateColumns.split(' ').length;
+        const delta = {ArrowLeft:-1, ArrowRight:1, ArrowUp:-columns, ArrowDown:columns}[e.key] || 0;
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? slots.length - 1 : Math.max(0, Math.min(index + delta, slots.length - 1));
+        slots[next]?.focus(); window.selectSlot(slots[next]);
+      }
     });
 
     initCardTables(document);
-    initValidation(document);
     initSearchableSelects(document);
-    initSteps();
+    initValidation(document);
     initTabs(document);
     initPagination(document);
   });

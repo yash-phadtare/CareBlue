@@ -1,38 +1,35 @@
 {% extends "base.html" %}
+{% from 'components/pagination.html' import clear_filters with context %}
 {% block title %}Billing{% endblock %}
 {% block page_title %}Billing{% endblock %}
 {% block crumbs %}finance · billing{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Finance · ledger</p><h2 class="md-h2">Bills <span class="md-count-tag">· {{ total_bills }} raised</span></h2><p class="md-sub">Collected <strong class="md-mono-nums">₹{{ '%.2f'|format(collected) }}</strong> · outstanding <strong class="md-mono-nums">₹{{ '%.2f'|format(outstanding) }}</strong>.</p></div>
-    <a href="{{ url_for('new_bill') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>New bill</a>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><h1 class="md-h2">Bills <span class="md-count-tag">· {{ total_bills }} {{ 'in view' if search_query or status_filter else 'raised' }}</span></h1><p class="md-sub">{% if search_query or status_filter %}In this view: {% endif %}Collected <strong class="md-mono-nums numeric">₹{{ '%.2f'|format(collected) }}</strong> · outstanding <strong class="md-mono-nums numeric">₹{{ '%.2f'|format(outstanding) }}</strong>.</p></div>
+    <a href="{{ context_link('admin.new_bill') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>New bill</a>
 </div></div>
-<div class="md-card"><div class="md-card-body">
-    <form class="md-toolbar" method="GET" action="{{ url_for('billing') }}" role="search">
+<div class="md-card md-collection md-collection--bills"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('admin.billing') }}" role="search">
+        {{ search_state() }}
         <div class="md-field"><label for="q">Search bills</label><input type="search" id="q" name="search" placeholder="Patient or bill no..." value="{{ search_query }}"></div>
         <div class="md-field field-narrow"><label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option><option value="Unpaid" {% if status_filter=='Unpaid' %}selected{% endif %}>Unpaid</option><option value="Partial" {% if status_filter=='Partial' %}selected{% endif %}>Partial</option><option value="Paid" {% if status_filter=='Paid' %}selected{% endif %}>Paid</option></select></div>
         <button class="md-btn md-btn--filled" type="submit"><i data-lucide="sliders-horizontal"></i>Apply</button>
-        {% if search_query or status_filter %}<a href="{{ url_for('billing') }}" class="md-btn md-btn--light">Reset</a>{% endif %}
+        {% if search_query or status_filter %}{{ clear_filters(['search', 'status'],'Reset filters') }}{% endif %}
     </form>
-    <div class="md-chip-row mb-1" role="group" aria-label="Quick status filter">
-        <a class="md-chip {{ 'on' if not status_filter }}" href="{{ url_for('billing') }}">All</a>
-        <a class="md-chip {{ 'on' if status_filter=='Unpaid' }}" href="{{ url_for('billing') }}?status=Unpaid">Unpaid</a>
-        <a class="md-chip {{ 'on' if status_filter=='Partial' }}" href="{{ url_for('billing') }}?status=Partial">Partial</a>
-        <a class="md-chip {{ 'on' if status_filter=='Paid' }}" href="{{ url_for('billing') }}?status=Paid">Paid</a>
-    </div>
-    {% if bills %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="10"><caption class="md-sr-only">Bills — patient, totals and payment status</caption>
-        <thead><tr><th scope="col">Bill</th><th scope="col">Patient</th><th scope="col">Raised</th><th scope="col">Total</th><th scope="col">Paid</th><th scope="col">Balance</th><th scope="col">Status</th><th scope="col" class="text-right">Open</th></tr></thead>
+    {{ sort_controls() }}
+{% if pagers %}{{ pager_controls(pagers[0], 'Bills',position='top') }}{% endif %}
+{% if bills %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards data-page-size="10"><caption class="md-sr-only">Bills — patient, totals and payment status</caption>
+        <thead><tr><th scope="col"{% if request.args.get('sort')=='id' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('id','Bill') }}</th><th scope="col"{% if request.args.get('sort')=='patient_name' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('patient_name','Patient') }}</th><th scope="col" class="numeric">Total</th><th scope="col" class="numeric">Paid</th><th scope="col" class="numeric"{% if request.args.get('sort')=='balance_cents' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('balance_cents','Balance') }}</th><th scope="col">Status</th><th scope="col" class="text-right">Open</th></tr></thead>
         <tbody>{% for b in bills %}<tr>
-            <td class="md-row-no">#{{ b.id }}</td>
-            <td><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ b.patient_name[0]|upper }}</span><strong>{{ b.patient_name }}</strong></span></td>
-            <td class="md-mono-nums" style="color:var(--md-on-surface-variant)">{{ b.created_at[:10] if b.created_at else '—' }}</td>
-            <td class="md-mono-nums"><strong>₹{{ '%.2f'|format(b.total) }}</strong></td>
-            <td class="md-mono-nums">₹{{ '%.2f'|format(b.paid) }}</td>
-            <td class="md-mono-nums">₹{{ '%.2f'|format(b.balance) }}</td>
+            <td class="md-row-no">#{{ b.id }}<small class="md-roster-meta">{{ b.created_at[:10]|date_display if b.created_at else '—' }}</small></td>
+            <td class="no-label"><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ b.patient_name[0]|upper }}</span><strong>{{ b.patient_name }}</strong></span></td>
+            <td class="md-mono-nums numeric"><strong>₹{{ '%.2f'|format(b.total_cents|from_minor) }}</strong></td>
+            <td class="md-mono-nums numeric">₹{{ '%.2f'|format(b.paid_cents|from_minor) }}</td>
+            <td class="md-mono-nums numeric">₹{{ '%.2f'|format(b.balance_cents|from_minor) }}</td>
             <td><span class="md-badge md-badge--{{ 'done' if b.status == 'Paid' else ('warn' if b.status == 'Partial' else 'danger') }}"><i data-lucide="{{ 'check' if b.status == 'Paid' else ('hourglass' if b.status == 'Partial' else 'circle-alert') }}" aria-hidden="true"></i>{{ b.status }}</span></td>
-            <td class="text-right"><a href="{{ url_for('bill_detail', bill_id=b.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Open bill {{ b.id }}">Open</a></td>
+            <td class="text-right"><a href="{{ context_link('admin.bill_detail', bill_id=b.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Open bill {{ b.id }}">Open</a></td>
         </tr>{% endfor %}</tbody>
     </table></div></div>
-    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="receipt-text"></i></div><h5>No bills in view</h5><p>Clear the filters or raise the first bill.</p><a href="{{ url_for('new_bill') }}" class="md-btn md-btn--filled md-btn--sm">New bill</a></div>{% endif %}
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="receipt-text"></i></div><h2>No bills in view</h2><p>{% if search_query or status_filter %}Clear the filters to see other bills.{% else %}Use New bill above to create your first bill.{% endif %}</p></div>{% endif %}
 </div></div>
 {% endblock %}

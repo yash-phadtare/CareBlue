@@ -1,10 +1,15 @@
 # Pinned to versions the test suite passes against. Verify with:
-#   pip install -r requirements.txt && python -c "import app"
+#   pip install -r requirements.txt && python -m unittest discover -s tests
 # (gunicorn is Render-only; it cannot boot on Windows due to fcntl.)
 Flask==3.1.3
 Werkzeug==3.1.8
-gunicorn==26.2.0
+gunicorn==26.2.0; sys_platform != "win32"
 pandas==3.0.5
 Pillow==12.3.0
 xlsxwriter==3.2.9
 # Transitive via pandas (do not pin directly): numpy, python-dateutil
+psycopg[binary]>=3.2,<4
+boto3>=1.35,<2
+cryptography>=44,<50
+pyotp>=2.9,<3
+tzdata>=2025.1

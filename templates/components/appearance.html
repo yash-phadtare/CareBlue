@@ -1,0 +1,7 @@
+{% macro appearance_options() %}
+<div class="md-menu-group" role="group" aria-label="Appearance">
+<p class="md-menu-label">Appearance</p>
+{% for value,label,icon in [('light','Light','sun'),('dark','Dark','moon'),('system','Use device setting','monitor')] %}
+<button type="button" class="md-menu-item" role="menuitemradio" aria-checked="false" data-theme-option="{{ value }}"><i data-lucide="{{ icon }}" aria-hidden="true"></i><span>{{ label }}</span><i data-lucide="check" class="md-theme-check" aria-hidden="true"></i></button>
+{% endfor %}</div>
+{% endmacro %}

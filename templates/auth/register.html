@@ -1,56 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Register hospital{% endblock %}
 {% block content %}
-<div class="md-auth-wrap"><div class="md-auth-card">
-    <div class="md-auth-brand">
-        <div>
-            <span class="md-badge" style="background:rgba(255,255,255,0.16);color:#fff;margin-bottom:0.75rem"><i data-lucide="plus"></i>New workspace</span>
-            <h2>Open your clinic's dashboard.</h2>
-            <p>One account per hospital. Invite doctors, set weekly hours, welcome patients.</p>
-        </div>
-        <ul>
-            <li><span class="tick"><i data-lucide="lock"></i></span><span><strong>Private by default</strong><br><small>Isolated data per hospital</small></span></li>
-            <li><span class="tick"><i data-lucide="key-round"></i></span><span><strong>Logins in seconds</strong><br><small>Usernames + secure passwords</small></span></li>
-            <li><span class="tick"><i data-lucide="printer"></i></span><span><strong>Visits that scale</strong><br><small>Slots, statuses, exports</small></span></li>
-        </ul>
-    </div>
+<div class="md-auth-wrap"><div class="md-auth-card md-auth-card--registration">
     <div class="md-auth-form">
-        <p class="file-no" style="font-size:0.66rem;font-weight:500;letter-spacing:0.1em;color:var(--md-outline)">CAREBLUE / ONBOARDING · 60 SEC</p>
-        <h3>Create workspace</h3>
+        <h1>Create workspace</h1>
         <p class="muted">Start with your administrator profile.</p>
-        <form method="POST" action="{{ url_for('register') }}" novalidate>
+        <form method="POST" action="{{ url_for('auth.register') }}" data-auth-flow data-submit-message="Creating workspace…" novalidate class="md-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="md-grid-2" style="gap:0.9rem;margin-bottom:0.9rem">
-                <div class="md-field"><label for="name">Your name</label><input id="name" name="name" required autocomplete="name" placeholder="Aarav Sharma"></div>
-                <div class="md-field"><label for="email">Work email</label><input type="email" id="email" name="email" required autocomplete="email" placeholder="you@hospital.org"></div>
+            <div class="md-grid-2 gap-4">
+                <div class="md-field"><label for="name">Your name</label><input id="name" name="name" required maxlength="120" autocomplete="name" placeholder="Aarav Sharma" value="{{ request.form.get('name','') }}"></div>
+                <div class="md-field"><label for="email">Work email</label><input type="email" id="email" name="email" required maxlength="254" autocomplete="email" placeholder="you@hospital.org" value="{{ request.form.get('email','') }}"></div>
             </div>
-            <div class="md-field" style="margin-bottom:0.9rem"><label for="hospital_name">Hospital name</label><input id="hospital_name" name="hospital_name" placeholder="e.g. Lakeside Care Hospital" required></div>
-            <div class="md-grid-2" style="gap:0.9rem;margin-bottom:1.2rem">
-                <div class="md-field"><label for="password">Password</label><div class="md-pass-wrap"><input type="password" id="password" name="password" required minlength="6" autocomplete="new-password"><button type="button" class="md-pass-toggle" data-pass-toggle="password" aria-label="Show password" aria-pressed="false"><i data-lucide="eye"></i></button></div>
-                    <ul id="pwCheck" class="md-caption" style="list-style:none;padding:0;margin:0.4rem 0.25rem 0;display:grid;gap:0.15rem">
-                        <li data-rule="len">At least 6 characters</li>
+            <div class="md-field"><label for="hospital_name">Hospital name</label><input id="hospital_name" name="hospital_name" placeholder="e.g. Lakeside Care Hospital" required maxlength="120" value="{{ request.form.get('hospital_name','') }}"></div>
+            <div class="md-field"><label for="slug">Workspace address</label><input id="slug" name="slug" required minlength="3" maxlength="50" pattern="[a-z0-9][a-z0-9\-]{1,48}[a-z0-9]" autocapitalize="none" spellcheck="false" aria-describedby="slug-help workspace-preview" placeholder="lakeside-care" value="{{ request.form.get('slug','') }}"><p id="slug-help" class="md-help">Suggested from your hospital name. You can change it using 3–50 lowercase letters, numbers or hyphens.</p><p class="md-workspace-preview"><span class="md-caption">Team sign-in address</span><strong id="workspace-preview">/h/{{ request.form.get('slug') or 'your-workspace' }}</strong></p></div>
+            <div class="md-grid-2 gap-4">
+                <div class="md-field"><label for="password">Password</label><div class="md-pass-wrap"><input type="password" id="password" name="password" required minlength="12" maxlength="128" autocomplete="new-password"><button type="button" class="md-pass-toggle" data-pass-toggle="password" aria-label="Show password" aria-pressed="false"><i data-lucide="eye"></i></button></div>
+                    <ul id="pwCheck" class="md-caption password-checklist">
+                        <li data-rule="len">At least 12 characters</li>
                         <li data-rule="match">Passwords match</li>
                     </ul>
                 </div>
-                <div class="md-field"><label for="confirm_password">Confirm</label><input type="password" id="confirm_password" name="confirm_password" required autocomplete="new-password"></div>
+                <div class="md-field"><label for="confirm_password">Confirm password</label><input type="password" id="confirm_password" name="confirm_password" required maxlength="128" autocomplete="new-password"></div>
             </div>
             <button class="md-btn md-btn--filled md-btn--lg md-full" type="submit">Create workspace<i data-lucide="arrow-right"></i></button>
         </form>
-        <p class="md-caption" style="margin-top:1rem">Already set up? <a href="{{ url_for('login') }}">Sign in</a></p>
+        <p class="md-caption mt-4">Already set up? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
     </div>
 </div></div>
 {% endblock %}
 {% block extra_js %}
-<script>
-const pw = document.getElementById('password');
-const pw2 = document.getElementById('confirm_password');
-const rules = { len: document.querySelector('#pwCheck [data-rule="len"]'), match: document.querySelector('#pwCheck [data-rule="match"]') };
-function checkPw() {
-  rules.len.dataset.ok = pw.value.length >= 6 ? '1' : '0';
-  rules.match.dataset.ok = (pw2.value.length > 0 && pw.value === pw2.value) ? '1' : '0';
-}
-pw.addEventListener('input', checkPw);
-pw2.addEventListener('input', checkPw);
-checkPw();
-</script>
+<script src="{{ url_for('static', filename='js/pages/auth_register.js') }}"></script>
 {% endblock %}

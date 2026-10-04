@@ -1,0 +1,68 @@
+/* Collections prioritize comparison and next actions over repeated decoration. */
+.md-collection .md-toolbar { margin-bottom: var(--md-space-3); }
+.md-collection .md-table-wrap { border: 0; border-radius: 0; box-shadow: none; }
+.md-collection .md-table th { padding-block: 8px; }
+.md-collection .md-table td { padding-block: 12px; }
+.md-collection .md-search-wrap .md-field { min-width: 0; }
+.md-pager--top { margin: 8px 0 16px; padding: 8px 12px; border: 0; border-radius: 12px; background: var(--md-surface-container-low); gap: 8px; }
+.md-pager--top > span { flex: 1 1 200px; min-width: 0; font-size: 13px; }
+.md-pager--top .md-cluster { gap: 8px; flex-shrink: 0; }
+.md-access-list > .md-pager--top { margin: 0 16px 12px; }
+.md-patient-notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+.md-column-sort { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: inherit; text-decoration: none; border-radius: 8px; }
+.md-column-sort:hover { color: var(--md-primary-dark); }
+.md-column-sort.is-sorted { color: var(--md-primary-dark); font-weight: 700; }
+.md-column-sort svg { width: 14px; height: 14px; flex: 0 0 14px; }
+.md-column-sort:focus-visible { outline: 3px solid var(--md-focus); outline-offset: 3px; }
+.md-filter-tabs { margin-bottom: var(--md-space-4); }
+.md-filter-tabs .md-chip.on, .md-period-controls .md-chip.on { font-weight: 700; }
+.md-filter-tabs .md-chip svg, .md-period-controls .md-chip svg { width: 16px; height: 16px; flex: 0 0 16px; }
+.md-roster-photo { width: 36px; height: 36px; flex: 0 0 36px; border-radius: 12px; object-fit: cover; }
+.md-roster-meta { display: block; margin-top: 4px; color: var(--md-text-2); font-size: 12px; }
+.md-access-link { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; text-decoration: none; border-radius: 8px; }
+.md-access-link > svg { width: 14px; height: 14px; }
+.md-access-link:focus-visible { outline: 3px solid var(--md-focus); outline-offset: 3px; }
+.md-collection--doctors .md-person { align-items: center; }
+.md-workspace-address { overflow-wrap: anywhere; }
+.md-audit-detail > summary { cursor: pointer; line-height: 1.5; padding-block: 8px; }
+.md-audit-expand { font-weight: 700; color: var(--md-primary-dark); }
+.md-audit-detail > p { white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border-radius: 12px; background: var(--md-surface-container-low); }
+@media (max-width: 767px) {
+  .md-collection .md-card-body { padding: var(--md-space-4); }
+  .md-collection .md-toolbar .md-field { min-width: 0; flex-basis: 160px; }
+  .md-collection .md-search-wrap .md-field { flex: 1 1 110px; }
+  .md-collection .md-toolbar > button[type="submit"] { flex: 0 0 auto; padding-inline: 14px; }
+  .md-collection--visits .md-toolbar > .md-field:first-of-type,
+  .md-collection--bills .md-toolbar > .md-field:first-of-type { flex-basis: 100%; }
+  .md-collection--visits .md-toolbar .field-narrow,
+  .md-collection--bills .md-toolbar .field-narrow { flex: 1 1 108px; }
+  .md-collection .md-table--cards tr { padding: 16px 0; column-gap: 12px; row-gap: 0; }
+  .md-collection .md-table--cards td { padding-block: 6px; }
+  .md-collection .md-table--cards .md-cell-label { margin-bottom: 2px; }
+  .md-collection .md-table--cards td:is([data-label="Actions"],[data-label="Open"]) .md-cell-label { display: none; }
+  .md-collection .md-table--cards td.no-label { padding-top: 0; padding-bottom: 8px; }
+  .md-collection .md-table--cards .md-row-actions { gap: 8px; }
+  .md-collection .md-table--cards .md-row-actions .md-icon-btn { padding-inline: 10px; }
+  .md-collection--visits .md-table--cards td[data-label="Doctor"],
+  .md-collection--visits .md-table--cards td[data-label="When"],
+  .md-collection--patients .md-table--cards td[data-label="History"],
+  .md-collection--workspaces .md-table--cards td[data-label="Workspace"],
+  .md-collection--admissions .md-table--cards td[data-label="Ward / bed"] { grid-column: auto; }
+  .md-collection--visits .md-table--cards td[data-label="Actions"] { grid-column: auto; }
+  .md-collection--visits .md-row-actions { justify-content: flex-end; }
+  .md-collection--visits .md-table--cards .md-row-actions .md-icon-btn { padding-inline: 8px; }
+  .md-collection--bills .md-table--cards td[data-label="Bill"] { grid-column: 1; grid-row: 1; }
+  .md-collection--bills .md-table--cards td[data-label="Status"] { grid-column: 2; grid-row: 1; }
+  .md-collection--bills .md-table--cards td[data-label="Open"] { grid-column: 2; align-self: end; }
+  .md-collection--audit .md-table--cards td[data-label="Detail"] { padding-top: 8px; }
+  .md-collection--doctors .md-table--cards td[data-label="Actions"] { padding-top: 10px; }
+}
+@media (max-width: 359px) {
+  .md-collection--visits .md-table--cards td[data-label="Actions"] { grid-column: 1 / -1; }
+  .md-collection--visits .md-row-actions { justify-content: flex-start; }
+}
+@media print {
+  .md-column-sort { min-height: 0; color: inherit; }
+  .md-column-sort svg, .md-access-link > svg, .md-filter-tabs { display: none; }
+  .md-collection .md-table td { padding-block: 8px; }
+}

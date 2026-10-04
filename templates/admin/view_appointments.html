@@ -1,44 +1,42 @@
 {% extends "base.html" %}
-{% block title %}Appointments{% endblock %}
-{% block page_title %}Appointments{% endblock %}
-{% block crumbs %}overview · appointments{% endblock %}
+{% from 'components/pagination.html' import clear_filters with context %}
+{% block title %}Visits{% endblock %}
+{% block page_title %}Visits{% endblock %}
+{% block crumbs %}care · visits{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Visit flow · REG/V</p><h2 class="md-h2">Visits <span class="md-count-tag">· {{ appointments|length }}{% if search_query or status_filter %} of {{ appointments_total }}{% endif %} recorded</span></h2><p class="md-sub">Filter by person or status, export anytime.</p></div>
-    <div class="md-cluster"><a href="{{ url_for('export_appointments') }}" class="md-btn md-btn--light"><i data-lucide="file-spreadsheet"></i>Export</a><a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>New visit</a></div>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><h1 class="md-h2">Visits <span class="md-count-tag">· {{ pagers[0].total if pagers else appointments|length }}{% if search_query or status_filter or request.args.get('period','all') != 'all' %} of {{ appointments_total }}{% endif %} recorded</span></h1><p class="md-sub">Find visits by person, status, or date.</p></div>
+    <div class="md-cluster"><a href="{{ url_for('admin.export_appointments',**request.args.to_dict()) }}" class="md-btn md-btn--light"><i data-lucide="file-spreadsheet"></i>Export results</a><a href="{{ context_link('admin.schedule_appointment') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>New visit</a></div>
 </div></div>
-<div class="md-card"><div class="md-card-body">
-    <form class="md-toolbar" method="GET" action="{{ url_for('view_appointments') }}" role="search">
+<div class="md-card md-collection md-collection--visits"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('admin.view_appointments') }}" role="search">
+        {{ search_state() }}
         <div class="md-field"><label for="q">Search visits</label><input type="search" id="q" name="search" placeholder="Patient or doctor..." value="{{ search_query }}"></div>
         <div class="md-field field-narrow"><label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option><option value="Scheduled" {% if status_filter=='Scheduled' %}selected{% endif %}>Scheduled</option><option value="Completed" {% if status_filter=='Completed' %}selected{% endif %}>Completed</option><option value="Cancelled" {% if status_filter=='Cancelled' %}selected{% endif %}>Cancelled</option></select></div>
         <button class="md-btn md-btn--filled" type="submit"><i data-lucide="sliders-horizontal"></i>Apply</button>
-        {% if search_query or status_filter %}<a href="{{ url_for('view_appointments') }}" class="md-btn md-btn--light">Reset</a>{% endif %}
+        {% if search_query or status_filter or request.args.get('period','all') != 'all' %}{{ clear_filters(['search', 'status', 'period'],'Reset filters') }}{% endif %}
     </form>
-    <div class="md-chip-row mb-1" role="group" aria-label="Quick status filter">
-        <a class="md-chip {{ 'on' if not status_filter }}" href="{{ url_for('view_appointments') }}" {% if not status_filter %}aria-current="true"{% endif %}>All</a>
-        <a class="md-chip {{ 'on' if status_filter=='Scheduled' }}" href="{{ url_for('view_appointments') }}?status=Scheduled">Scheduled</a>
-        <a class="md-chip {{ 'on' if status_filter=='Completed' }}" href="{{ url_for('view_appointments') }}?status=Completed">Completed</a>
-        <a class="md-chip {{ 'on' if status_filter=='Cancelled' }}" href="{{ url_for('view_appointments') }}?status=Cancelled">Cancelled</a>
-    </div>
-    {% if appointments %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="8"><caption class="md-sr-only">Appointments</caption>
-        <thead><tr><th scope="col">#</th><th scope="col">Patient</th><th scope="col">Doctor</th><th scope="col">When</th><th scope="col">Status</th><th scope="col" class="text-right">Actions</th></tr></thead>
+    {{ period_controls() }}
+    {{ sort_controls() }}
+{% if pagers %}{{ pager_controls(pagers[0], 'Visits',position='top') }}{% endif %}
+{% if appointments %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards data-page-size="8"><caption class="md-sr-only">Visits</caption>
+        <thead><tr><th scope="col"{% if request.args.get('sort')=='patient_name' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('patient_name','Patient') }}</th><th scope="col">Doctor</th><th scope="col"{% if request.args.get('sort')=='date' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('date','When') }}</th><th scope="col"{% if request.args.get('sort')=='status' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('status','Status') }}</th><th scope="col" class="text-right">Actions</th></tr></thead>
         <tbody>{% for app in appointments %}<tr>
-            <td class="md-row-no">{{ '%02d' % loop.index }}</td>
-            <td><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ app.patient_name[0]|upper }}</span><strong>{{ app.patient_name }}</strong></span></td>
-            <td>Dr. {{ app.doctor_name }}</td><td class="md-mono-nums" style="color:var(--md-on-surface-variant)">{{ app.date }} · {{ app.time_slot }}</td>
+            <td class="no-label"><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ app.patient_name[0]|upper }}</span><strong>{{ app.patient_name }}</strong></span></td>
+            <td>Dr. {{ app.doctor_name }}</td><td class="md-mono-nums text-muted">{{ app.date|date_display }} · {{ app.time_slot|time_display }}</td>
             <td><span class="md-badge md-badge--{{ 'done' if app.status == 'Completed' else ('cancel' if app.status == 'Cancelled' else 'sched') }}"><i data-lucide="{{ 'check' if app.status == 'Completed' else ('x' if app.status == 'Cancelled' else 'clock') }}" aria-hidden="true"></i>{{ app.status }}</span></td>
             <td class="text-right"><span class="md-row-actions">
-                <a href="{{ url_for('new_bill') }}?appointment_id={{ app.id }}" class="md-icon-btn md-icon-btn--sm icon-btn--action" aria-label="Raise bill for {{ app.patient_name }}"><i data-lucide="receipt-text"></i><span class="md-row-label">Bill</span></a>
-                <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="delAppt{{ app.id }}" aria-label="Delete visit of {{ app.patient_name }} on {{ app.date }}"><i data-lucide="trash-2"></i><span class="md-row-label">Delete</span></button>
+                <a href="{{ context_link('admin.review_visit',appointment_id=app.id) }}" class="md-btn md-btn--text md-btn--sm" aria-label="Open visit for {{ app.patient_name }}">Open visit</a>
+                {% if can('billing') %}<a href="{{ context_link('admin.new_bill',appointment_id=app.id) }}" class="md-icon-btn md-icon-btn--sm icon-btn--action" aria-label="Raise bill for {{ app.patient_name }}"><i data-lucide="receipt-text"></i><span class="md-row-label">Bill</span></a>{% endif %}
+                <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="delAppt{{ app.id }}" aria-label="Delete visit of {{ app.patient_name }} on {{ app.date|date_display }}"><i data-lucide="trash-2"></i><span class="md-row-label">Delete</span></button>
             </span></td>
         </tr>{% endfor %}</tbody>
     </table></div></div>
-    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="calendar-x"></i></div><h5>No visits in view</h5><p>Clear the filters or schedule a new appointment.</p><a href="{{ url_for('schedule_appointment') }}" class="md-btn md-btn--filled md-btn--sm">Schedule visit</a></div>{% endif %}
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="calendar-x"></i></div><h2>No visits in view</h2><p>{% if search_query or status_filter or request.args.get('period','all') != 'all' %}Reset the filters to see other visits.{% else %}Use New visit above to book a time or add a walk-in.{% endif %}</p></div>{% endif %}
 </div></div>
-<a href="{{ url_for('schedule_appointment') }}" class="md-fab" aria-label="Schedule a visit"><i data-lucide="plus"></i>Schedule</a>
 {% for app in appointments %}<div class="md-dialog-backdrop" data-md-dialog="delAppt{{ app.id }}" role="dialog" aria-modal="true" aria-label="Delete visit"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">Delete this visit?</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <div class="md-dialog-body"><p class="mt-0"><strong>{{ app.patient_name }}</strong> with Dr. {{ app.doctor_name }}</p><p class="md-caption md-mono-nums mt-0">{{ app.date }} · {{ app.time_slot }} · {{ app.status }}</p><p class="md-caption">Deleting removes visit #{{ app.id }} permanently. Bills already raised are kept. Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
-    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ url_for('delete_appointment', appointment_id=app.id) }}" data-confirm="Delete visit #{{ app.id }} ({{ app.patient_name }}, {{ app.date }})? This cannot be undone." class="mt-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Delete</button></form></div>
+    <div class="md-dialog-head"><h2 class="md-dialog-title">Delete this visit?</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-body"><p class="mt-0"><strong>{{ app.patient_name }}</strong> with Dr. {{ app.doctor_name }}</p><p class="md-caption md-mono-nums mt-0">{{ app.date|date_display }} · {{ app.time_slot|time_display }} · {{ app.status }}</p><p class="md-caption">Deleting removes visit #{{ app.id }} permanently. Bills already raised are kept. Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
+    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ context_link('admin.delete_appointment', appointment_id=app.id) }}" class="mt-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Delete</button></form></div>
 </div></div>{% endfor %}
 {% endblock %}

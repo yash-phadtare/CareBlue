@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}{{ workspace.name }}{% endblock %}
+{% block page_title %}Manage workspace{% endblock %}
+{% block crumbs %}platform · workspace{% endblock %}
+{% block content %}
+<div class="md-page-head"><div><h1 class="md-h2">{{ workspace.name }}</h1><p class="md-sub">Workspace: {{ workspace.slug }} · Created {{ workspace.created_at|datetime_display }}</p></div><a class="md-btn md-btn--outlined" href="{{ back_url('platform.dashboard') }}"><i data-lucide="arrow-left"></i>{{ 'Back to results' if return_context else 'All hospitals' }}</a></div>
+<div class="md-card"><div class="md-card-body"><h2 class="md-title">Hospital contact</h2><p class="mt-2">{{ workspace.contact_email or 'No contact email' }} · {{ workspace.phone or 'No phone' }}</p><p>{{ workspace.address }}</p><p>Timezone: {{ workspace.timezone }}</p></div></div>
+<div class="md-card"><div class="md-card-body"><h2 class="md-title mb-3">Subscription and workspace access</h2><form method="POST" class="md-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ workspace.settings_version }}"><div class="md-grid-2">
+<div class="md-field"><label for="plan">Plan</label><select id="plan" name="plan">{% for plan in plans %}<option {% if workspace.plan==plan %}selected{% endif %}>{{ plan }}</option>{% endfor %}</select></div>
+<div class="md-field"><label for="status">Workspace status</label><select id="status" name="status">{% for status in statuses %}<option {% if workspace.status==status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></div>
+<div class="md-field"><label for="trial-end">Trial end date</label><input id="trial-end" type="date" name="trial_ends_at" value="{{ workspace.trial_ends_at or '' }}"><p class="md-help">Required for trial workspaces.</p></div></div>
+<div class="md-field"><label for="reason">Reason for change</label><textarea id="reason" name="reason" required maxlength="500"></textarea></div><p class="md-help">Suspension blocks hospital sessions and sign-in. Plan changes are recorded here; payment collection is handled separately.</p><button class="md-btn md-btn--filled" type="submit">Save subscription and access</button></form></div></div>
+<div class="md-card"><div class="md-card-body"><h2 class="md-title">Platform support history</h2>{% for event in events %}<p class="support-event">{{ event.created_at|datetime_display }} · {{ event.action }}<br>{{ event.detail }}</p>{% else %}<p class="md-sub">No platform changes recorded.</p>{% endfor %}</div></div>
+{% endblock %}

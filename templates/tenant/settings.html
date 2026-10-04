@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Hospital settings{% endblock %}
+{% block page_title %}Hospital settings{% endblock %}
+{% block crumbs %}workspace · settings{% endblock %}
+{% block content %}
+<div class="md-page-head"><div><h1 class="md-h2">Make this workspace yours</h1><p class="md-sub">Your changes apply only to {{ hospital.name }}.</p></div></div>
+<div class="md-card"><div class="md-card-body">
+<form method="POST" enctype="multipart/form-data" class="md-form">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ hospital.settings_version }}">
+<div class="md-form-section"><h2>Identity and branding</h2>
+<div class="md-grid-2">
+<div class="md-field"><label for="hospital-name">Hospital name</label><input id="hospital-name" name="name" value="{{ values.get('name','') }}" required maxlength="120"></div>
+<div class="md-field"><label for="brand-color">Brand color</label><input id="brand-color" name="brand_color" type="color" value="{{ values.get('brand_color','#1677FF') }}" required></div>
+<div class="md-field"><label for="logo">Logo</label><input id="logo" name="logo" type="file" accept="image/png,image/jpeg"><p class="md-help">PNG or JPG, up to 5 MB. Your logo is visible on your public sign-in page.</p>{% if hospital.logo_path %}<img class="tenant-logo" src="{{ url_for('tenant.public_logo',slug=hospital.slug) }}" alt="Current hospital logo"><label><input type="checkbox" name="remove_logo"> Remove current logo</label>{% endif %}</div>
+<div class="md-field"><span class="md-label">Team sign-in address</span><p><a id="workspace-sign-in" href="{{ url_for('auth.workspace_login',slug=hospital.slug) }}">{{ request.host_url }}h/{{ hospital.slug }}/login</a></p><div class="md-cluster"><button type="button" data-copy-target="workspace-sign-in" class="md-btn md-btn--text md-btn--sm"><i data-lucide="copy"></i>Copy address</button><span class="md-help">Share with your team.</span></div></div>
+</div></div>
+<div class="md-form-section"><h2>Contact details</h2><div class="md-grid-2">
+<div class="md-field"><label for="contact-email">Contact email</label><input id="contact-email" name="contact_email" type="email" value="{{ values.get('contact_email','') }}" maxlength="254"></div>
+<div class="md-field"><label for="phone">Phone</label><input id="phone" name="phone" value="{{ values.get('phone','') }}" maxlength="40"></div>
+</div><div class="md-field"><label for="address">Address</label><textarea id="address" name="address" maxlength="1000">{{ values.get('address','') }}</textarea></div></div>
+<details class="md-form-section md-settings-advanced"><summary>Hours and document preferences</summary><div class="md-stack"><div class="md-grid-2">
+<div class="md-field"><label for="timezone">Timezone</label><input id="timezone" name="timezone" value="{{ values.get('timezone','Asia/Kolkata') }}" required list="timezones"><datalist id="timezones"><option value="Asia/Kolkata"><option value="Asia/Dubai"><option value="Europe/London"><option value="America/New_York"><option value="UTC"></datalist><p class="md-help">Appointment times use this timezone. Resolve scheduled visits before changing it.</p></div>
+<div class="md-field"><label for="document-style">Document style</label><select id="document-style" name="document_style">{% for style in ['standard','compact'] %}<option value="{{ style }}" {% if values.get('document_style')==style %}selected{% endif %}>{{ style|capitalize }}</option>{% endfor %}</select></div>
+<div class="md-field"><label for="opening-time">Default opening time</label><input id="opening-time" name="opening_time" type="time" value="{{ values.get('opening_time','09:00') }}" required></div>
+<div class="md-field"><label for="closing-time">Default closing time</label><input id="closing-time" name="closing_time" type="time" value="{{ values.get('closing_time','17:00') }}" required></div>
+</div><p class="md-help">These hours prefill new doctor schedules. Existing schedules retain their own hours.</p>
+<div class="md-field"><label for="footer">Document footer</label><textarea id="footer" name="document_footer" maxlength="500">{{ values.get('document_footer','') }}</textarea><p class="md-help">Appears on invoices and new prescription versions.</p></div></div></details>
+<div class="md-form-actions"><button class="md-btn md-btn--filled" type="submit">Save hospital settings</button></div>
+</form></div></div>
+<div class="md-card"><div class="md-card-body"><h2>Workspace subscription</h2><p class="mt-2">{{ hospital.plan }} · {{ hospital.status }}{% if hospital.trial_ends_at %} · Trial ends {{ hospital.trial_ends_at|date_display }}{% endif %}</p><p class="md-help">Contact platform support for plan or subscription changes.</p></div></div>
+{% endblock %}

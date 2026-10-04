@@ -3,27 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Database error · CareBlue</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Roboto', system-ui, sans-serif; background: #FFFBFE; color: #1C1B1F; margin: 0; display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
-        .md-card { background: #fff; border: 1px solid #CAC4D0; border-radius: 28px; padding: 3rem 2.5rem; text-align: center; max-width: 560px; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-        .md-empty-icon { width: 64px; height: 64px; border-radius: 22px; background: #F9DEDC; color: #B3261E; display: inline-flex; align-items: center; justify-content: center; font-size: 1.6rem; font-weight: 700; margin: 0 auto 1rem; }
-        .md-caption { font-size: .72rem; letter-spacing: .1em; color: #49454F; margin: 0 0 .5rem; }
-        h1 { font-size: 1.4rem; font-weight: 500; margin: 0 0 .5rem; }
-        p.muted { color: #49454F; margin: 0 0 1.5rem; }
-        .md-cluster { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap; }
-        .md-btn { display: inline-flex; gap: .5rem; align-items: center; background: #6750A4; color: #fff; border-radius: 9999px; padding: .7rem 1.6rem; text-decoration: none; font-weight: 500; border: 0; font-size: .875rem; cursor: pointer; font-family: inherit; }
-        .md-btn--light { background: transparent; color: #6750A4; border: 1px solid #79747E; }
-    </style>
+    <title>Records unavailable · CareBlue</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/layout-utilities.css') }}">
 </head>
-<body>
-    <main class="md-card">
-        <div class="md-empty-icon" aria-hidden="true">!</div>
-        <p class="md-caption">SERVICE HEALTH</p>
-        <h1>Database temporarily unavailable</h1>
-        <p class="muted">We're having trouble reaching records. Wait a moment, then try again — your data is safe.</p>
-        <div class="md-cluster"><a href="/" class="md-btn">Back to home</a><button class="md-btn md-btn--light" onclick="location.reload()" type="button">Retry</button></div>
+<body class="md-service-error">
+    <main class="md-card error-card" id="mainContent">
+        <div class="md-empty">
+            <div class="md-empty-icon" aria-hidden="true">!</div>
+            <p class="md-error-code">Service unavailable</p>
+            <h1>Records temporarily unavailable</h1>
+            <p>We couldn’t reach your hospital’s records. Wait a moment, then retry. If you were saving a change, check whether it was saved before submitting again.</p>
+            <div class="md-cluster"><a href="/" class="md-btn md-btn--outlined">Back to home</a><button class="md-btn md-btn--filled" data-action="reload" type="button">Retry</button></div>
+        </div>
     </main>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

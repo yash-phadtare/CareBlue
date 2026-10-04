@@ -4,24 +4,28 @@
 {% block crumbs %}rounds · patients{% endblock %}
 {% block content %}
 <div class="md-page-head">
-    <p class="md-eyebrow">Continuity of care</p>
-    <h2 class="md-h2">Patients <span class="md-count-tag">· {{ patients|length }}{% if search_query %} of {{ patients_total }}{% endif %}</span></h2>
-    <p class="md-sub">Everyone you've seen, with last visit.</p>
+    <div>
+
+    <h1 class="md-h2">Patients <span class="md-count-tag">· {{ pagers[0].total if pagers else patients|length }}{% if search_query %} of {{ patients_total }}{% endif %}</span></h1>
+    <p class="md-sub">Patient records, previous visits, and prescription history.</p>
+    </div>
 </div>
-<div class="md-card"><div class="md-card-body">
-    <form class="md-toolbar" method="GET" action="{{ url_for('all_patients_history') }}" role="search">
-        <div class="md-search-wrap"><div class="md-field"><label for="q">Search patients</label><input type="search" id="q" name="search" placeholder="Name..." value="{{ search_query }}"></div><button class="md-btn md-btn--filled" type="submit">Search</button>{% if search_query %}<a href="{{ url_for('all_patients_history') }}" class="md-btn md-btn--light">Clear</a>{% endif %}</div>
+<div class="md-card md-collection"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('doctor.all_patients_history') }}" role="search">
+        {{ search_state() }}
+        <div class="md-search-wrap"><div class="md-field"><label for="q">Search patients</label><input type="search" id="q" name="search" placeholder="Name..." value="{{ search_query }}"></div><button class="md-btn md-btn--filled" type="submit">Search</button>{% if search_query %}<a href="{{ url_for('doctor.all_patients_history') }}" class="md-btn md-btn--light">Clear</a>{% endif %}</div>
     </form>
+    {{ sort_controls() }}
     {% if patients %}
-    <div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="8"><caption class="md-sr-only">Patients</caption>
-        <thead><tr><th scope="col">#</th><th scope="col">Patient</th><th scope="col">Age</th><th scope="col">Gender</th><th scope="col">Last visit</th><th scope="col" class="text-right">Timeline</th></tr></thead>
+    <div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards data-page-size="8"><caption class="md-sr-only">Patients</caption>
+        <thead><tr><th scope="col">#</th><th scope="col"{% if request.args.get('sort')=='name' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('name','Patient') }}</th><th scope="col">Age</th><th scope="col">Gender</th><th scope="col"{% if request.args.get('sort')=='last_visit' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('last_visit','Last visit') }}</th><th scope="col" class="text-right">Timeline</th></tr></thead>
         <tbody>{% for patient in patients %}<tr>
             <td class="md-row-no">{{ '%02d' % loop.index }}</td>
             <td><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ patient.name[0]|upper }}</span><strong>{{ patient.name }}</strong></span></td>
-            <td class="md-mono-nums">{{ patient.age }}</td><td>{{ patient.gender }}</td><td class="md-mono-nums" style="color:var(--md-on-surface-variant)">{{ patient.last_visit or '—' }}</td>
-            <td class="text-right"><a href="{{ url_for('patient_history', patient_id=patient.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Open timeline of {{ patient.name }}"><i data-lucide="history"></i>Open</a></td>
+            <td class="md-mono-nums">{{ patient.age|age_display }}</td><td>{{ patient.gender }}</td><td class="md-mono-nums text-muted">{{ patient.last_visit|date_display if patient.last_visit else '—' }}</td>
+            <td class="text-right"><a href="{{ context_link('doctor.patient_history', patient_id=patient.id) }}" class="md-btn md-btn--outlined md-btn--sm" aria-label="Open timeline of {{ patient.name }}"><i data-lucide="history"></i>Open</a></td>
         </tr>{% endfor %}</tbody>
     </table></div></div>
-    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="users"></i></div><h5>No patients yet</h5><p>Patients appear here after their first visit with you.</p></div>{% endif %}
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="users"></i></div><h2>{{ 'No patients found' if search_query else 'No patients yet' }}</h2><p>{% if search_query %}Try a different name or clear your search.{% else %}Patients appear here after their first visit with you.{% endif %}</p></div>{% endif %}
 </div></div>
 {% endblock %}

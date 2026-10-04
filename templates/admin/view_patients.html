@@ -1,42 +1,45 @@
 {% extends "base.html" %}
+{% from 'components/pagination.html' import clear_filters with context %}
 {% block title %}Patients{% endblock %}
 {% block page_title %}Patients{% endblock %}
 {% block crumbs %}registry · patients{% endblock %}
 {% block content %}
-<div class="md-page-head"><div class="md-split" style="align-items:flex-end">
-    <div><p class="md-eyebrow">Care registry · REG/P</p><h2 class="md-h2">Patients <span class="md-count-tag">· {{ patients|length }}{% if search_query %} of {{ patients_total }}{% endif %} recorded</span></h2><p class="md-sub">Search, schedule and manage records.</p></div>
-    <a href="{{ url_for('add_patient') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>Add patient</a>
+<div class="md-page-head"><div class="md-split items-end">
+    <div><h1 class="md-h2">Patients <span class="md-count-tag">· {{ pagers[0].total if pagers else patients|length }}{% if search_query %} of {{ patients_total }}{% endif %} recorded</span></h1><p class="md-sub">Search, schedule and manage records.</p></div>
+    <a href="{{ context_link('admin.add_patient') }}" class="md-btn md-btn--filled"><i data-lucide="plus"></i>Add patient</a>
 </div></div>
-<div class="md-card"><div class="md-card-body">
-    <form class="md-toolbar" method="GET" action="{{ url_for('view_patients') }}" role="search">
-        <div class="md-search-wrap"><div class="md-field"><label for="q">Search registry</label><input type="search" id="q" name="search" placeholder="Name or phone..." value="{{ search_query }}"></div><button class="md-btn md-btn--filled" type="submit">Search</button>{% if search_query %}<a href="{{ url_for('view_patients') }}" class="md-btn md-btn--light">Clear</a>{% endif %}</div>
+<div class="md-card md-collection md-collection--patients"><div class="md-card-body">
+    <form class="md-toolbar" method="GET" action="{{ url_for('admin.view_patients') }}" role="search">
+        {{ search_state() }}
+        <div class="md-search-wrap"><div class="md-field"><label for="q">Search registry</label><input type="search" id="q" name="search" placeholder="Name or phone..." value="{{ search_query }}"></div><button class="md-btn md-btn--filled" type="submit">Search</button>{% if search_query %}{{ clear_filters(['search'],'Clear') }}{% endif %}</div>
     </form>
-    {% if patients %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table js-paginate" data-page-size="8"><caption class="md-sr-only">Patients</caption>
-        <thead><tr><th scope="col">#</th><th scope="col">Patient</th><th scope="col">Age · Gender</th><th scope="col">Contact</th><th scope="col">History</th><th scope="col" class="text-right">Actions</th></tr></thead>
+    {{ sort_controls() }}
+    {% if pagers %}{{ pager_controls(pagers[0], 'Patients',position='top') }}{% endif %}
+{% if patients %}<div class="md-table-wrap"><div class="md-table-scroll"><table class="md-table" data-mobile-cards data-page-size="8"><caption class="md-sr-only">Patients</caption>
+        <thead><tr><th scope="col"{% if request.args.get('sort')=='name' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('name','Patient') }}</th><th scope="col"{% if request.args.get('sort')=='age' %} aria-sort="{{ 'descending' if request.args.get('direction')=='desc' else 'ascending' }}"{% endif %}>{{ sort_heading('age','Age · Gender') }}</th><th scope="col">Contact</th><th scope="col">History</th><th scope="col" class="text-right">Actions</th></tr></thead>
         <tbody>{% for patient in patients %}<tr>
-            <td class="md-row-no">{{ '%02d' % loop.index }}</td>
-            <td><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ patient.name[0]|upper }}</span><span><strong>{{ patient.name }}</strong><br><small>#{{ patient.id }}</small></span></span></td>
-            <td class="md-mono-nums">{{ patient.age }} · {{ patient.gender }}</td><td>{{ patient.contact }}</td>
-            <td>{% if patient.medical_history %}<button class="md-btn md-btn--outlined md-btn--sm" data-md-open="hx{{ patient.id }}" aria-label="View history of {{ patient.name }}"><i data-lucide="eye"></i>Notes</button>{% else %}<span class="md-badge md-badge--neutral"><i data-lucide="minus" aria-hidden="true"></i>None</span>{% endif %}</td>
+            <td class="no-label"><span class="md-person"><span class="md-avatar" aria-hidden="true">{{ patient.name[0]|upper }}</span><span><strong>{{ patient.name }}</strong><br><small>#{{ patient.id }}</small></span></span></td>
+            <td class="md-mono-nums">{{ patient.age|age_display }} · {{ patient.gender }}</td><td>{{ patient.contact or 'Not recorded' }}</td>
+            <td>{% if patient.medical_history %}<button class="md-btn md-btn--outlined md-btn--sm" data-md-open="hx{{ patient.id }}" aria-label="View history of {{ patient.name }}"><i data-lucide="eye"></i>Notes</button>{% else %}<span class="md-caption">No notes</span>{% endif %}</td>
             <td class="text-right"><span class="md-row-actions">
-                <a href="{{ url_for('schedule_appointment') }}?patient_id={{ patient.id }}" class="md-icon-btn md-icon-btn--sm icon-btn--action" aria-label="Book visit for {{ patient.name }}"><i data-lucide="calendar-plus"></i><span class="md-row-label">Book</span></a>
+                <a class="md-btn md-btn--text md-btn--sm" href="{{ context_link('admin.edit_patient',patient_id=patient.id) }}">Edit</a>
+                <a href="{{ context_link('admin.schedule_appointment',patient_id=patient.id) }}" class="md-icon-btn md-icon-btn--sm icon-btn--action" aria-label="Book visit for {{ patient.name }}"><i data-lucide="calendar-plus"></i><span class="md-row-label">Book</span></a>
                 <button class="md-icon-btn md-icon-btn--sm md-icon-btn--danger" data-md-open="del{{ patient.id }}" aria-label="Remove {{ patient.name }}, record #{{ patient.id }}"><i data-lucide="trash-2"></i><span class="md-row-label">Remove</span></button>
             </span></td>
         </tr>{% endfor %}</tbody>
     </table></div></div>
-    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="users"></i></div><h5>No patients found</h5><p>{% if search_query %}Try a different name or number.{% else %}Add your first patient record to get started.{% endif %}</p><a href="{{ url_for('add_patient') }}" class="md-btn md-btn--filled md-btn--sm">Add patient</a></div>{% endif %}
+    {% else %}<div class="md-empty"><div class="md-empty-icon"><i data-lucide="users"></i></div><h2>No patients found</h2><p>{% if search_query %}Try a different name or number, or clear the search.{% else %}Use Add patient above to create your first record.{% endif %}</p></div>{% endif %}
 </div></div>
 {% for patient in patients %}
 {% if patient.medical_history %}<div class="md-dialog-backdrop" data-md-dialog="hx{{ patient.id }}" role="dialog" aria-modal="true" aria-label="Clinical notes"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">Notes · {{ patient.name }}</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
-    <div class="md-dialog-body"><p style="margin-bottom:0.5rem"><strong>Age/Gender:</strong> {{ patient.age }} / {{ patient.gender }}</p><hr style="border:0;border-top:1px solid var(--md-outline-variant)"><p style="margin:0.5rem 0 0">{{ patient.medical_history }}</p></div>
+    <div class="md-dialog-head"><h2 class="md-dialog-title">Notes · {{ patient.name }}</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-body"><p class="mb-2"><strong>Age/Gender:</strong> {{ patient.age|age_display }} / {{ patient.gender }}</p><hr class="divider"><p class="mt-2 md-patient-notes">{{ patient.medical_history }}</p></div>
     <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Close</button></div>
 </div></div>{% endif %}
 <div class="md-dialog-backdrop" data-md-dialog="del{{ patient.id }}" role="dialog" aria-modal="true" aria-label="Remove patient"><div class="md-dialog">
-    <div class="md-dialog-head"><h5 class="md-dialog-title">Remove {{ patient.name }}?</h5><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
+    <div class="md-dialog-head"><h2 class="md-dialog-title">Remove {{ patient.name }}?</h2><button class="md-icon-btn md-icon-btn--sm" data-md-close aria-label="Close dialog"><i data-lucide="x"></i></button></div>
     <div class="md-dialog-body"><div class="md-banner-inline md-banner-inline--warning"><i data-lucide="triangle-alert"></i><span>Patients with visits on record cannot be removed.</span></div><p class="md-caption mt-1">This permanently deletes <strong>{{ patient.name }}</strong> (record #{{ patient.id }}). Hospital · <strong>{{ session.get('hospital_name', '') }}</strong></p></div>
-    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ url_for('delete_patient', patient_id=patient.id) }}" data-confirm="Remove {{ patient.name }} (record #{{ patient.id }})? This cannot be undone." class="mt-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Remove</button></form></div>
+    <div class="md-dialog-foot"><button class="md-btn md-btn--light" data-md-close type="button">Keep</button><form method="POST" action="{{ context_link('admin.delete_patient', patient_id=patient.id) }}" class="mt-0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="md-btn md-btn--danger" type="submit">Remove</button></form></div>
 </div></div>
 {% endfor %}
-<a href="{{ url_for('add_patient') }}" class="md-fab" aria-label="Add patient"><i data-lucide="plus"></i>Patient</a>
 {% endblock %}

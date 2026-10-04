@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Doctor absences{% endblock %}
+{% block page_title %}Doctor absences{% endblock %}
+{% block crumbs %}doctors · absences{% endblock %}
+{% block content %}
+<div class="md-page-head"><div><h1 class="md-headline">Absences · Dr. {{ doctor.name }}</h1><p class="md-sub">Block dates when this doctor is away. Existing visits are kept for you to review.</p></div></div>
+<form method="post" class="md-card"><div class="md-card-body md-stack">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="md-grid-2"><div class="md-field"><label for="start_date">First day away</label><input id="start_date" name="start_date" type="date" required></div><div class="md-field"><label for="end_date">Last day away (optional)</label><input id="end_date" name="end_date" type="date"><p class="md-help">Leave blank for a single day.</p></div></div>
+<div class="md-field"><label for="reason">Reason (optional)</label><input name="reason" id="reason" maxlength="500" placeholder="Unavailable"></div>
+<div class="md-form-actions"><button class="md-btn md-btn--filled" type="submit">Save absence</button> <a href="{{ context_link('admin.set_doctor_slots', doctor_id=doctor.id) }}" class="md-btn md-btn--outlined">Weekly hours</a></div></div></form>
+{% for absence in absences %}<article class="md-card"><div class="md-card-body"><strong>{{ absence.start_date|date_display }} – {{ absence.end_date|date_display }}</strong><p>{{ absence.reason }}</p></div></article>{% else %}<div class="md-card"><div class="md-empty"><span class="md-empty-icon"><i data-lucide="calendar-check"></i></span><h2>No absences recorded</h2><p>Add dates above to keep unavailable days out of booking.</p></div></div>{% endfor %}
+{% endblock %}
